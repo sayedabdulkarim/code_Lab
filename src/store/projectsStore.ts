@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Project, ProjectTemplate } from '../types';
-import { getTemplateFiles } from '../utils/templates';
+import { getTemplateFiles, getTemplateDependencies } from '../utils/templates';
 
 interface ProjectsStore {
   // State
@@ -119,11 +119,13 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const files = getTemplateFiles(template);
+      const dependencies = getTemplateDependencies(template);
       const projectData = {
         name,
         description,
         template,
         files,
+        dependencies,
         ownerId: userId,
         isPublic: false,
         stars: 0,

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Text, Badge, Stack, Group, Grid, Container } from 'ui_zenkit';
+import { Button, Card, Text, Badge, Stack, Group, Container } from 'ui_zenkit';
 import { useAuthStore } from '../store';
 
 const features = [
@@ -108,9 +108,17 @@ export default function Landing() {
           <h2 style={{ fontSize: '1.75rem', fontWeight: 'bold', textAlign: 'center', marginBottom: '3rem' }}>
             Everything You Need to Build
           </h2>
-          <Grid columns={3} gap={4}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '1.5rem',
+              maxWidth: '1000px',
+              margin: '0 auto',
+            }}
+          >
             {features.map((feature) => (
-              <Card key={feature.title} variant="outlined" size="lg">
+              <Card key={feature.title} variant="outlined" size="lg" style={{ padding: '1.5rem' }}>
                 <Stack spacing="sm">
                   <span style={{ fontSize: '2rem' }}>{feature.icon}</span>
                   <Text size="md" weight="semibold">
@@ -122,7 +130,7 @@ export default function Landing() {
                 </Stack>
               </Card>
             ))}
-          </Grid>
+          </div>
         </Container>
       </section>
 

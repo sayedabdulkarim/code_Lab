@@ -102,9 +102,9 @@ Uses ZenkitUI (own component library) + zenkit-css (own CSS framework).
 ### 4.2 File Explorer
 - [x] File list with icons (JS, CSS, HTML, JSON, etc.)
 - [x] Click to open file in editor
-- [ ] Tree component for nested file structure
-- [ ] Right-click context menu (rename, delete)
-- [ ] Create new file/folder
+- [x] Tree component for nested file structure
+- [x] Right-click context menu (rename, delete)
+- [x] Create new file/folder
 
 ### 4.3 Code Editor
 - [x] Monaco Editor integration
@@ -124,16 +124,16 @@ Uses ZenkitUI (own component library) + zenkit-css (own CSS framework).
 ## Phase 5: Dependencies
 
 ### 5.1 Dependency Panel
-- [ ] Dependency section in sidebar
-- [ ] Search input with Algolia npm search
-- [ ] Search results dropdown
-- [ ] Click to install (add to dependencies)
-- [ ] Display installed dependencies
-- [ ] Remove dependency option
+- [x] Dependency section in sidebar
+- [x] Search input with npm registry search
+- [x] Search results dropdown
+- [x] Click to install (add to dependencies)
+- [x] Display installed dependencies
+- [x] Remove dependency option
 
 ### 5.2 Sandpack Integration
-- [ ] Pass dependencies to Sandpack
-- [ ] Handle dependency installation loading state
+- [x] Pass dependencies to Sandpack
+- [x] Handle dependency installation loading state
 
 ---
 
@@ -157,8 +157,8 @@ Uses ZenkitUI (own component library) + zenkit-css (own CSS framework).
 
 ### 7.1 UI Enhancements
 - [x] Dark theme (default)
-- [ ] Loading skeletons
-- [ ] Toast notifications
+- [x] Loading skeletons
+- [x] Toast notifications
 - [x] Keyboard shortcuts (Cmd+S save)
 
 ### 7.2 Templates
@@ -173,8 +173,8 @@ Uses ZenkitUI (own component library) + zenkit-css (own CSS framework).
 
 ### 7.3 Error Handling
 - [x] Firebase error handling (basic)
-- [ ] Sandpack error boundaries
-- [ ] Network error states
+- [x] Sandpack error boundaries
+- [x] Network error states
 
 ---
 

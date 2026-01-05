@@ -5,6 +5,10 @@ export const templates: Record<ProjectTemplate, TemplateConfig> = {
     name: 'React',
     icon: 'react',
     description: 'React with JavaScript',
+    dependencies: {
+      'react': '^18.2.0',
+      'react-dom': '^18.2.0',
+    },
     files: {
       '/App.js': `export default function App() {
   return (
@@ -62,6 +66,14 @@ h1 {
     name: 'React TypeScript',
     icon: 'react',
     description: 'React with TypeScript',
+    dependencies: {
+      'react': '^18.2.0',
+      'react-dom': '^18.2.0',
+    },
+    devDependencies: {
+      '@types/react': '^18.2.0',
+      '@types/react-dom': '^18.2.0',
+    },
     files: {
       '/App.tsx': `export default function App(): JSX.Element {
   return (
@@ -424,4 +436,9 @@ export const getTemplateList = () => {
     id: key as ProjectTemplate,
     ...config,
   }));
+};
+
+export const getTemplateDependencies = (template: ProjectTemplate): Record<string, string> => {
+  const config = templates[template];
+  return config.dependencies || {};
 };

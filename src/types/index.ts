@@ -14,6 +14,7 @@ export interface Project {
   description: string;
   template: ProjectTemplate;
   files: ProjectFile[];
+  dependencies?: Record<string, string>;
   ownerId: string;
   isPublic: boolean;
   createdAt: Date;

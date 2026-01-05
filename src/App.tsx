@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Landing, Login, Signup, Dashboard, Editor, Explore } from './pages';
 import { ProtectedRoute } from './components/common';
+import { ToastProvider } from './components/ToastProvider';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useAuthStore } from './store';
 
 function App() {
@@ -13,8 +15,9 @@ function App() {
   }, [initialize]);
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
         {/* Public routes */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
@@ -38,8 +41,10 @@ function App() {
             </ProtectedRoute>
           }
         />
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+        <ToastProvider />
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

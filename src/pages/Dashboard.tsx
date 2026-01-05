@@ -10,20 +10,11 @@ import {
   Badge,
   Input,
   Modal,
-  Spinner,
   Alert,
   FormItem,
-  AppShell,
-  AppShellHeader,
-  AppShellNavbar,
-  AppShellMain,
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarGroup,
-  SidebarItem,
   Avatar,
   Empty,
+  Skeleton,
 } from 'ui_zenkit';
 import { useAuthStore, useProjectsStore } from '../store';
 import { getTemplateList } from '../utils/templates';
@@ -36,7 +27,7 @@ type NavSection = 'recent' | 'all' | 'settings';
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const { projects, loading, error, fetchUserProjects, createProject, deleteProject } =
+  const { projects, loading, error, fetchUserProjects, createProject, deleteProject, clearError } =
     useProjectsStore();
 
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -99,86 +90,118 @@ export default function Dashboard() {
   const filteredProjects = getFilteredProjects();
 
   return (
-    <div data-theme="dark">
-      <AppShell
-        headerHeight={56}
-        navbarWidth={250}
-        padding="md"
-        style={{ minHeight: '100vh' }}
-      >
-        {/* Header */}
-        <AppShellHeader>
-          <Group justify="apart" align="center" style={{ height: '100%', padding: '0 1rem' }}>
-            <Text size="md" weight="bold" style={{ color: 'var(--primary)', fontSize: '1.25rem' }}>
-              CodeLab
+    <div data-theme="dark" style={{ minHeight: '100vh', background: 'var(--surface-1)' }}>
+      {/* Header */}
+      <header style={{
+        height: '56px',
+        background: 'var(--surface-2)',
+        borderBottom: '1px solid var(--border)',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 1rem'
+      }}>
+        <Text size="md" weight="bold" style={{ color: 'var(--primary)', fontSize: '1.25rem' }}>
+          CodeLab
+        </Text>
+        <Group gap="md" align="center">
+          <Button
+            variant="solid"
+            colorScheme="primary"
+            size="sm"
+            onClick={() => setShowNewProjectModal(true)}
+          >
+            + New Project
+          </Button>
+          <Group gap="sm" align="center">
+            <Avatar
+              src={user?.photoURL || undefined}
+              fallback={user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+              size="sm"
+            />
+            <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
+              {user?.displayName || user?.email}
             </Text>
-            <Group gap="md" align="center">
-              <Button
-                variant="solid"
-                colorScheme="primary"
-                size="sm"
-                onClick={() => setShowNewProjectModal(true)}
-              >
-                + New Project
-              </Button>
-              <Group gap="sm" align="center">
-                <Avatar
-                  src={user?.photoURL || undefined}
-                  fallback={user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                  size="sm"
-                />
-                <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
-                  {user?.displayName || user?.email}
-                </Text>
-              </Group>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                Sign Out
-              </Button>
-            </Group>
           </Group>
-        </AppShellHeader>
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
+            Sign Out
+          </Button>
+        </Group>
+      </header>
 
+      <div style={{ display: 'flex', paddingTop: '56px', minHeight: '100vh' }}>
         {/* Sidebar Navigation */}
-        <AppShellNavbar>
-          <Sidebar width={250}>
-            <SidebarHeader>
-              <Text size="sm" weight="semibold" style={{ padding: '0.5rem 1rem' }}>
-                Navigation
-              </Text>
-            </SidebarHeader>
-            <SidebarContent>
-              <SidebarGroup>
-                <SidebarItem
-                  icon={<span>🕐</span>}
-                  active={activeNav === 'recent'}
-                  onClick={() => setActiveNav('recent')}
-                  style={{ cursor: 'pointer' }}
-                >
-                  Recent
-                </SidebarItem>
-                <SidebarItem
-                  icon={<span>📁</span>}
-                  active={activeNav === 'all'}
-                  onClick={() => setActiveNav('all')}
-                  style={{ cursor: 'pointer' }}
-                >
-                  All Projects
-                </SidebarItem>
-                <SidebarItem
-                  icon={<span>⚙️</span>}
-                  active={activeNav === 'settings'}
-                  onClick={() => setActiveNav('settings')}
-                  style={{ cursor: 'pointer' }}
-                >
-                  Settings
-                </SidebarItem>
-              </SidebarGroup>
-            </SidebarContent>
-          </Sidebar>
-        </AppShellNavbar>
+        <aside style={{
+          width: '250px',
+          background: 'var(--surface-2)',
+          borderRight: '1px solid var(--border)',
+          position: 'fixed',
+          top: '56px',
+          left: 0,
+          bottom: 0,
+          overflow: 'auto'
+        }}>
+          <div style={{ padding: '1rem' }}>
+            <Text size="sm" weight="semibold" style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+              Navigation
+            </Text>
+            <Stack spacing="xs">
+              <div
+                onClick={() => setActiveNav('recent')}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: activeNav === 'recent' ? 'var(--primary-alpha)' : 'transparent',
+                  color: activeNav === 'recent' ? 'var(--primary)' : 'var(--text-primary)'
+                }}
+              >
+                <span>🕐</span> Recent
+              </div>
+              <div
+                onClick={() => setActiveNav('all')}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: activeNav === 'all' ? 'var(--primary-alpha)' : 'transparent',
+                  color: activeNav === 'all' ? 'var(--primary)' : 'var(--text-primary)'
+                }}
+              >
+                <span>📁</span> All Projects
+              </div>
+              <div
+                onClick={() => setActiveNav('settings')}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: activeNav === 'settings' ? 'var(--primary-alpha)' : 'transparent',
+                  color: activeNav === 'settings' ? 'var(--primary)' : 'var(--text-primary)'
+                }}
+              >
+                <span>⚙️</span> Settings
+              </div>
+            </Stack>
+          </div>
+        </aside>
 
         {/* Main Content */}
-        <AppShellMain>
+        <main style={{ marginLeft: '250px', flex: 1, padding: '1.5rem' }}>
           {activeNav === 'settings' ? (
             <Stack spacing="lg">
               <div>
@@ -221,34 +244,70 @@ export default function Dashboard() {
 
               {/* Error Alert */}
               {error && (
-                <Alert status="danger">
-                  {error}
+                <Alert status="danger" closable onClose={clearError}>
+                  <div style={{ wordBreak: 'break-word', overflow: 'hidden' }}>
+                    {error}
+                  </div>
                 </Alert>
               )}
 
               {/* Projects Grid */}
               {loading ? (
-                <div style={{ textAlign: 'center', padding: '4rem' }}>
-                  <Spinner size="lg" />
-                  <Text style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>
-                    Loading projects...
-                  </Text>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  minHeight: 'calc(100vh - 200px)'
+                }}>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 280px)',
+                    gap: '1rem'
+                  }}>
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                      <Card key={i} variant="outlined" size="md">
+                        <Stack spacing="sm">
+                          <Group justify="apart" align="start">
+                            <Skeleton variant="text" width="60%" />
+                            <Skeleton variant="rounded" width={60} height={20} />
+                          </Group>
+                          <Skeleton variant="text" lines={2} />
+                          <Group justify="apart" align="center">
+                            <Skeleton variant="text" width="40%" />
+                            <Skeleton variant="rounded" width={50} height={28} />
+                          </Group>
+                        </Stack>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               ) : filteredProjects.length === 0 ? (
-                <Empty
-                  title="No projects yet"
-                  description="Create your first project to get started"
-                >
-                  <Button
-                    variant="solid"
-                    colorScheme="primary"
-                    onClick={() => setShowNewProjectModal(true)}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  minHeight: 'calc(100vh - 200px)'
+                }}>
+                  <Empty
+                    title="No projects yet"
+                    description="Create your first project to get started"
                   >
-                    Create Project
-                  </Button>
-                </Empty>
+                    <Button
+                      variant="solid"
+                      colorScheme="primary"
+                      onClick={() => setShowNewProjectModal(true)}
+                    >
+                      Create Project
+                    </Button>
+                  </Empty>
+                </div>
               ) : (
-                <Grid columns={3} gap={4}>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 280px)',
+                    gap: '1rem'
+                  }}>
                   {filteredProjects.map((project) => (
                     <Card
                       key={project.id}
@@ -299,12 +358,13 @@ export default function Dashboard() {
                       </Stack>
                     </Card>
                   ))}
-                </Grid>
+                  </div>
+                </div>
               )}
             </Stack>
           )}
-        </AppShellMain>
-      </AppShell>
+        </main>
+      </div>
 
       {/* New Project Modal */}
       <Modal

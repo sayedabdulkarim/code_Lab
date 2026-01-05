@@ -9,6 +9,8 @@ interface EditorStore {
   files: ProjectFile[];
   unsavedChanges: Set<string>;
   settings: EditorSettings;
+  dependencies: Record<string, string>;
+  dependenciesChanged: boolean;
 
   // Actions
   setActiveFile: (path: string) => void;
@@ -21,6 +23,10 @@ interface EditorStore {
   createFile: (path: string, content?: string) => void;
   deleteFile: (path: string) => void;
   renameFile: (oldPath: string, newPath: string) => void;
+  setDependencies: (deps: Record<string, string>) => void;
+  addDependency: (name: string, version: string) => void;
+  removeDependency: (name: string) => void;
+  markDependenciesSaved: () => void;
   reset: () => void;
 }
 
@@ -60,6 +66,8 @@ export const useEditorStore = create<EditorStore>()(
       files: [],
       unsavedChanges: new Set(),
       settings: defaultSettings,
+      dependencies: {},
+      dependenciesChanged: false,
 
       setActiveFile: (path) => {
         const { openFiles } = get();
@@ -181,12 +189,33 @@ export const useEditorStore = create<EditorStore>()(
         });
       },
 
+      setDependencies: (deps) => set({ dependencies: deps, dependenciesChanged: false }),
+
+      addDependency: (name, version) => {
+        const { dependencies } = get();
+        set({
+          dependencies: { ...dependencies, [name]: version },
+          dependenciesChanged: true,
+        });
+      },
+
+      removeDependency: (name) => {
+        const { dependencies } = get();
+        const newDeps = { ...dependencies };
+        delete newDeps[name];
+        set({ dependencies: newDeps, dependenciesChanged: true });
+      },
+
+      markDependenciesSaved: () => set({ dependenciesChanged: false }),
+
       reset: () =>
         set({
           activeFile: null,
           openFiles: [],
           files: [],
           unsavedChanges: new Set(),
+          dependencies: {},
+          dependenciesChanged: false,
         }),
     }),
     {
