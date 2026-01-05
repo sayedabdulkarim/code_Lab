@@ -10,16 +10,28 @@ import {
   Badge,
   Input,
   Modal,
-  Container,
   Spinner,
   Alert,
   FormItem,
+  AppShell,
+  AppShellHeader,
+  AppShellNavbar,
+  AppShellMain,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarGroup,
+  SidebarItem,
+  Avatar,
+  Empty,
 } from 'ui_zenkit';
 import { useAuthStore, useProjectsStore } from '../store';
 import { getTemplateList } from '../utils/templates';
 import type { ProjectTemplate } from '../types';
 
 const templates = getTemplateList();
+
+type NavSection = 'recent' | 'all' | 'settings';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -32,6 +44,7 @@ export default function Dashboard() {
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplate>('react');
   const [creating, setCreating] = useState(false);
+  const [activeNav, setActiveNav] = useState<NavSection>('all');
 
   useEffect(() => {
     if (user) {
@@ -72,81 +85,160 @@ export default function Dashboard() {
     navigate('/');
   };
 
+  // Filter projects based on active nav
+  const getFilteredProjects = () => {
+    if (activeNav === 'recent') {
+      // Show last 5 updated projects
+      return [...projects]
+        .sort((a, b) => (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0))
+        .slice(0, 5);
+    }
+    return projects;
+  };
+
+  const filteredProjects = getFilteredProjects();
+
   return (
-    <div className="dashboard" data-theme="dark" style={{ minHeight: '100vh' }}>
-      {/* Header */}
-      <header
-        style={{
-          padding: '1rem 0',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--surface-2)',
-        }}
+    <div data-theme="dark">
+      <AppShell
+        headerHeight={56}
+        navbarWidth={250}
+        padding="md"
+        style={{ minHeight: '100vh' }}
       >
-        <Container size="xl">
-          <Group justify="apart" align="center">
+        {/* Header */}
+        <AppShellHeader>
+          <Group justify="apart" align="center" style={{ height: '100%', padding: '0 1rem' }}>
             <Text size="md" weight="bold" style={{ color: 'var(--primary)', fontSize: '1.25rem' }}>
               CodeLab
             </Text>
             <Group gap="md" align="center">
-              <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
-                {user?.displayName || user?.email}
-              </Text>
+              <Button
+                variant="solid"
+                colorScheme="primary"
+                size="sm"
+                onClick={() => setShowNewProjectModal(true)}
+              >
+                + New Project
+              </Button>
+              <Group gap="sm" align="center">
+                <Avatar
+                  src={user?.photoURL || undefined}
+                  fallback={user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                  size="sm"
+                />
+                <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
+                  {user?.displayName || user?.email}
+                </Text>
+              </Group>
               <Button variant="ghost" size="sm" onClick={handleLogout}>
                 Sign Out
               </Button>
             </Group>
           </Group>
-        </Container>
-      </header>
+        </AppShellHeader>
 
-      {/* Main Content */}
-      <main style={{ padding: '2rem 0' }}>
-        <Container size="xl">
-          <Stack spacing="xl">
-            {/* Page Header */}
-            <Group justify="apart" align="center">
+        {/* Sidebar Navigation */}
+        <AppShellNavbar>
+          <Sidebar width={250}>
+            <SidebarHeader>
+              <Text size="sm" weight="semibold" style={{ padding: '0.5rem 1rem' }}>
+                Navigation
+              </Text>
+            </SidebarHeader>
+            <SidebarContent>
+              <SidebarGroup>
+                <SidebarItem
+                  icon={<span>🕐</span>}
+                  active={activeNav === 'recent'}
+                  onClick={() => setActiveNav('recent')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  Recent
+                </SidebarItem>
+                <SidebarItem
+                  icon={<span>📁</span>}
+                  active={activeNav === 'all'}
+                  onClick={() => setActiveNav('all')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  All Projects
+                </SidebarItem>
+                <SidebarItem
+                  icon={<span>⚙️</span>}
+                  active={activeNav === 'settings'}
+                  onClick={() => setActiveNav('settings')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  Settings
+                </SidebarItem>
+              </SidebarGroup>
+            </SidebarContent>
+          </Sidebar>
+        </AppShellNavbar>
+
+        {/* Main Content */}
+        <AppShellMain>
+          {activeNav === 'settings' ? (
+            <Stack spacing="lg">
               <div>
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', margin: 0 }}>
-                  My Projects
+                  Settings
                 </h1>
                 <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
-                  Manage and create your code projects
+                  Manage your account settings
                 </Text>
               </div>
-              <Button
-                variant="solid"
-                colorScheme="primary"
-                onClick={() => setShowNewProjectModal(true)}
-              >
-                + New Project
-              </Button>
-            </Group>
-
-            {/* Error Alert */}
-            {error && (
-              <Alert status="danger">
-                {error}
-              </Alert>
-            )}
-
-            {/* Projects Grid */}
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: '4rem' }}>
-                <Spinner size="lg" />
-                <Text style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>
-                  Loading projects...
-                </Text>
-              </div>
-            ) : projects.length === 0 ? (
               <Card variant="outlined" size="lg">
-                <Stack spacing="md" align="center">
-                  <span style={{ fontSize: '3rem' }}>📁</span>
-                  <Text size="md" weight="semibold">
-                    No projects yet
+                <Stack spacing="md">
+                  <Group justify="apart" align="center">
+                    <div>
+                      <Text weight="medium">Account</Text>
+                      <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
+                        {user?.email}
+                      </Text>
+                    </div>
+                    <Button variant="outline" colorScheme="danger" onClick={handleLogout}>
+                      Sign Out
+                    </Button>
+                  </Group>
+                </Stack>
+              </Card>
+            </Stack>
+          ) : (
+            <Stack spacing="lg">
+              {/* Page Header */}
+              <div>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', margin: 0 }}>
+                  {activeNav === 'recent' ? 'Recent Projects' : 'All Projects'}
+                </h1>
+                <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
+                  {activeNav === 'recent'
+                    ? 'Your recently updated projects'
+                    : 'Manage and create your code projects'}
+                </Text>
+              </div>
+
+              {/* Error Alert */}
+              {error && (
+                <Alert status="danger">
+                  {error}
+                </Alert>
+              )}
+
+              {/* Projects Grid */}
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: '4rem' }}>
+                  <Spinner size="lg" />
+                  <Text style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>
+                    Loading projects...
                   </Text>
-                  <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
-                    Create your first project to get started
-                  </Text>
+                </div>
+              ) : filteredProjects.length === 0 ? (
+                <Empty
+                  title="No projects yet"
+                  description="Create your first project to get started"
+                >
                   <Button
                     variant="solid"
                     colorScheme="primary"
@@ -154,65 +246,65 @@ export default function Dashboard() {
                   >
                     Create Project
                   </Button>
-                </Stack>
-              </Card>
-            ) : (
-              <Grid columns={3} gap={4}>
-                {projects.map((project) => (
-                  <Card
-                    key={project.id}
-                    variant="outlined"
-                    size="md"
-                    hoverable
-                    onClick={() => navigate(`/editor/${project.id}`)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <Stack spacing="sm">
-                      <Group justify="apart" align="start">
-                        <Text size="md" weight="semibold" style={{ flex: 1 }}>
-                          {project.name}
-                        </Text>
-                        <Badge size="sm" color="secondary">
-                          {project.template}
-                        </Badge>
-                      </Group>
-                      <Text
-                        size="sm"
-                        style={{
-                          color: 'var(--text-secondary)',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                        }}
-                      >
-                        {project.description || 'No description'}
-                      </Text>
-                      <Group justify="apart" align="center">
-                        <Text size="sm" style={{ color: 'var(--text-tertiary)' }}>
-                          Updated {project.updatedAt?.toLocaleDateString() || 'recently'}
-                        </Text>
-                        <Button
-                          variant="ghost"
+                </Empty>
+              ) : (
+                <Grid columns={3} gap={4}>
+                  {filteredProjects.map((project) => (
+                    <Card
+                      key={project.id}
+                      variant="outlined"
+                      size="md"
+                      hoverable
+                      onClick={() => navigate(`/editor/${project.id}`)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <Stack spacing="sm">
+                        <Group justify="apart" align="start">
+                          <Text size="md" weight="semibold" style={{ flex: 1 }}>
+                            {project.name}
+                          </Text>
+                          <Badge size="sm" color="secondary">
+                            {project.template}
+                          </Badge>
+                        </Group>
+                        <Text
                           size="sm"
-                          colorScheme="danger"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteProject(project.id);
+                          style={{
+                            color: 'var(--text-secondary)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
                           }}
                         >
-                          Delete
-                        </Button>
-                      </Group>
-                    </Stack>
-                  </Card>
-                ))}
-              </Grid>
-            )}
-          </Stack>
-        </Container>
-      </main>
+                          {project.description || 'No description'}
+                        </Text>
+                        <Group justify="apart" align="center">
+                          <Text size="sm" style={{ color: 'var(--text-tertiary)' }}>
+                            Updated {project.updatedAt?.toLocaleDateString() || 'recently'}
+                          </Text>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            colorScheme="danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteProject(project.id);
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </Group>
+                      </Stack>
+                    </Card>
+                  ))}
+                </Grid>
+              )}
+            </Stack>
+          )}
+        </AppShellMain>
+      </AppShell>
 
       {/* New Project Modal */}
       <Modal

@@ -9,109 +9,115 @@ Uses ZenkitUI (own component library) + zenkit-css (own CSS framework).
 ## Phase 0: Prerequisites (ZenkitUI Deployment)
 
 ### 0.1 ZenkitUI Publish
-- [ ] Review @zenkit-ui/core package.json (version, exports)
-- [ ] Build @zenkit-ui/core (`pnpm build`)
-- [ ] Build @zenkit-ui/hooks (`pnpm build`)
-- [ ] Test build output locally
-- [ ] Publish @zenkit-ui/core to npm
+- [x] Review @zenkit-ui/core package.json (version, exports)
+- [x] Build @zenkit-ui/core (`pnpm build`)
+- [x] Build @zenkit-ui/hooks (`pnpm build`)
+- [x] Test build output locally
+- [x] Publish @zenkit-ui/core to npm (published as ui_zenkit)
 - [ ] Publish @zenkit-ui/hooks to npm
-- [ ] Verify installation works (`npm install @zenkit-ui/core`)
+- [x] Verify installation works (`npm install ui_zenkit`)
 
 ### 0.2 ZenkitUI Storybook Deploy (Optional but recommended)
-- [ ] Build storybook (`pnpm build-storybook`)
-- [ ] Deploy to Vercel/Netlify (for documentation reference)
+- [x] Build storybook (`pnpm build-storybook`)
+- [x] Deploy to GitHub Pages (https://sayedabdulkarim.github.io/-zenkit-ui/)
 
 ---
 
 ## Phase 1: Project Setup
 
 ### 1.1 Initialize CodeLab
-- [ ] Create Vite + React + TypeScript project
-- [ ] Install dependencies:
+- [x] Create Vite + React + TypeScript project
+- [x] Install dependencies:
   - zenkit-css
-  - @zenkit-ui/core
-  - @zenkit-ui/hooks
+  - ui_zenkit (was @zenkit-ui/core)
   - zustand
   - react-router-dom
   - @monaco-editor/react
   - @codesandbox/sandpack-react
   - firebase
   - algoliasearch
-- [ ] Setup folder structure
-- [ ] Configure TypeScript paths
-- [ ] Setup zenkit-css in main.css
+- [x] Setup folder structure
+- [x] Configure TypeScript paths
+- [x] Setup zenkit-css in index.css
 
 ### 1.2 Firebase Setup
+- [x] Create firebase.ts config file
 - [ ] Create Firebase project (console.firebase.google.com)
 - [ ] Enable Google Authentication
 - [ ] Create Firestore database
 - [ ] Setup security rules
 - [ ] Get Firebase config keys
-- [ ] Create firebase.ts config file
 
 ---
 
 ## Phase 2: Authentication
 
 ### 2.1 Auth Implementation
-- [ ] Create AuthContext/AuthStore (Zustand)
-- [ ] Google Sign-in button component
-- [ ] Sign-out functionality
-- [ ] Auth state persistence
-- [ ] Protected routes setup
-- [ ] User profile storage in Firestore
+- [x] Create AuthContext/AuthStore (Zustand)
+- [x] Google Sign-in button component
+- [x] GitHub Sign-in button component
+- [x] Sign-out functionality
+- [x] Auth state persistence
+- [x] Protected routes setup
+- [x] User profile storage in Firestore
 
 ---
 
 ## Phase 3: Dashboard
 
 ### 3.1 Dashboard Layout
-- [ ] Main dashboard layout using AppShell
-- [ ] Sidebar navigation (Recent, All Projects, Settings)
-- [ ] Header with user avatar, logout
+- [x] Main dashboard layout using AppShell
+- [x] Sidebar navigation (Recent, All Projects, Settings)
+- [x] Header with user avatar, logout
 
 ### 3.2 Project Cards
-- [ ] Project card component
-- [ ] Fetch projects from Firestore (where userId == current user)
-- [ ] Display project grid
-- [ ] Empty state when no projects
+- [x] Project card component
+- [x] Fetch projects from Firestore (where userId == current user)
+- [x] Display project grid
+- [x] Empty state when no projects
 
 ### 3.3 New Project Flow
-- [ ] "Create New" button
-- [ ] Template selection modal:
+- [x] "Create New" button
+- [x] Template selection modal:
   - Vanilla (HTML/CSS/JS)
   - React
-- [ ] Project name input
-- [ ] Create project in Firestore
-- [ ] Navigate to editor
+  - React TypeScript
+  - Vue
+  - Angular
+  - Svelte
+  - Next.js
+- [x] Project name input
+- [x] Create project in Firestore
+- [x] Navigate to editor
 
 ---
 
 ## Phase 4: Editor Layout
 
 ### 4.1 Editor Shell
-- [ ] Three-panel layout (File Explorer | Editor | Preview)
-- [ ] Resizable panels using Splitter
-- [ ] Header with project name, save status
+- [x] Three-panel layout (File Explorer | Editor | Preview)
+- [x] Resizable panels using Splitter
+- [x] Header with project name, save status
 
 ### 4.2 File Explorer
-- [ ] Tree component for file structure
-- [ ] File icons (JS, CSS, HTML, JSON)
-- [ ] Click to open file in editor
+- [x] File list with icons (JS, CSS, HTML, JSON, etc.)
+- [x] Click to open file in editor
+- [ ] Tree component for nested file structure
 - [ ] Right-click context menu (rename, delete)
 - [ ] Create new file/folder
 
 ### 4.3 Code Editor
-- [ ] Monaco Editor integration
-- [ ] Tab bar for open files
-- [ ] Syntax highlighting (JS, JSX, CSS, HTML, JSON)
-- [ ] Auto-save to local state
+- [x] Monaco Editor integration
+- [x] Tab bar for open files
+- [x] Syntax highlighting (JS, JSX, CSS, HTML, JSON)
+- [x] Auto-save to local state
+- [x] Unsaved indicator on tabs
 
 ### 4.4 Live Preview
-- [ ] Sandpack preview integration
-- [ ] Hot reload on code change
-- [ ] Error overlay
-- [ ] Refresh button
+- [x] Sandpack preview integration
+- [x] Hot reload on code change
+- [x] Console toggle
+- [x] Refresh button
 
 ---
 
@@ -134,33 +140,39 @@ Uses ZenkitUI (own component library) + zenkit-css (own CSS framework).
 ## Phase 6: Project Persistence
 
 ### 6.1 Auto-Save
-- [ ] Debounced save to Firestore on code change
-- [ ] Save indicator (Saving... / Saved)
-- [ ] Save files + dependencies
+- [x] Debounced save to Firestore on code change (2 second delay)
+- [x] Save indicator (Saving... / Saved / Unsaved)
+- [x] Save files + dependencies
+- [x] Keyboard shortcut (Cmd/Ctrl + S)
 
 ### 6.2 Load Project
-- [ ] Fetch project by ID from URL
-- [ ] Load files into editor
-- [ ] Load dependencies into Sandpack
-- [ ] Handle project not found
+- [x] Fetch project by ID from URL
+- [x] Load files into editor
+- [x] Load dependencies into Sandpack
+- [x] Handle project not found
 
 ---
 
 ## Phase 7: Polish
 
 ### 7.1 UI Enhancements
-- [ ] Dark theme (default)
+- [x] Dark theme (default)
 - [ ] Loading skeletons
 - [ ] Toast notifications
-- [ ] Keyboard shortcuts (Cmd+S save, etc.)
+- [x] Keyboard shortcuts (Cmd+S save)
 
 ### 7.2 Templates
-- [ ] Vanilla starter files
-- [ ] React starter files
+- [x] Vanilla starter files
+- [x] React starter files
+- [x] React TypeScript starter files
+- [x] Vue starter files
+- [x] Angular starter files
+- [x] Svelte starter files
+- [x] Next.js starter files
 - [ ] Template preview in selection modal
 
 ### 7.3 Error Handling
-- [ ] Firebase error handling
+- [x] Firebase error handling (basic)
 - [ ] Sandpack error boundaries
 - [ ] Network error states
 
@@ -183,8 +195,11 @@ During development, if any component is missing:
 |--------|-----------------|--------|
 | FileTree | Tree exists | Check file icon support |
 | SearchInput | Input exists | May need variant |
-| PanelGroup | Splitter exists | Verify API |
-| EmptyState | Empty exists | Check styling |
+| PanelGroup | Splitter exists | ✅ Working |
+| EmptyState | Empty exists | ✅ Working |
+| AppShell | AppShell exists | ✅ Working |
+| Sidebar | Sidebar exists | ✅ Working |
+| Avatar | Avatar exists | ✅ Working |
 
 ---
 
