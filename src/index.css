@@ -1,0 +1,33 @@
+/* ZenKit CSS */
+@import 'zenkit-css/dist/zenkit.css';
+
+/* App-specific styles */
+:root {
+  --app-header-height: 56px;
+  --app-sidebar-width: 250px;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Dark mode by default */
+:root {
+  color-scheme: dark;
+}
+
+/* Editor specific styles */
+.monaco-editor {
+  height: 100% !important;
+}
+
+/* Sandpack customization */
+.sp-wrapper {
+  height: 100%;
+}
+
+.sp-preview {
+  height: 100%;
+}
