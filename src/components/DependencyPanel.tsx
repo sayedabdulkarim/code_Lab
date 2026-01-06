@@ -1,13 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import {
-  Button,
-  Text,
-  Stack,
-  Group,
-  Input,
-  Spinner,
-  Badge,
-} from 'ui_zenkit';
+import { Text, Spinner } from 'ui_zenkit';
 import { useToastStore } from '../store';
 
 interface NpmPackage {
@@ -123,19 +115,43 @@ export function DependencyPanel({
 
       {/* Search Input */}
       <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
-        <Input
-          placeholder="Search npm packages..."
-          value={searchQuery}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          onFocus={() => searchResults.length > 0 && setShowResults(true)}
-        />
-        {searching && (
-          <div style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)' }}>
-            <Spinner size="sm" />
-          </div>
-        )}
+        <div style={{ position: 'relative' }}>
+          <span style={{
+            position: 'absolute',
+            left: '10px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: '#64748b',
+            fontSize: '14px',
+            pointerEvents: 'none',
+          }}>
+            🔍
+          </span>
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onFocus={() => searchResults.length > 0 && setShowResults(true)}
+            style={{
+              width: '100%',
+              padding: '8px 12px 8px 32px',
+              background: '#0f172a',
+              border: '1px solid #334155',
+              borderRadius: '6px',
+              color: '#e2e8f0',
+              fontSize: '13px',
+              outline: 'none',
+            }}
+          />
+          {searching && (
+            <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)' }}>
+              <Spinner size="sm" />
+            </div>
+          )}
+        </div>
 
-        {/* Search Results Dropdown */}
+        {/* Search Results Dropdown - positioned above dependencies list */}
         {showResults && searchResults.length > 0 && (
           <div
             style={{
@@ -143,97 +159,130 @@ export function DependencyPanel({
               top: '100%',
               left: 0,
               right: 0,
-              background: 'var(--surface-3)',
-              border: '1px solid var(--border)',
-              borderRadius: '4px',
-              maxHeight: '200px',
+              background: '#1e293b',
+              border: '1px solid #475569',
+              borderRadius: '6px',
+              maxHeight: '240px',
               overflowY: 'auto',
-              zIndex: 100,
+              zIndex: 9999,
               marginTop: '4px',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
             }}
           >
-            {searchResults.map((pkg) => (
+            {searchResults.map((pkg, index) => (
               <div
                 key={pkg.name}
                 onClick={() => handleAddDependency(pkg)}
                 style={{
-                  padding: '0.5rem 0.75rem',
+                  padding: '10px 12px',
                   cursor: 'pointer',
-                  borderBottom: '1px solid var(--border)',
+                  background: '#1e293b',
+                  borderBottom: index < searchResults.length - 1 ? '1px solid #334155' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
                 }}
                 onMouseEnter={(e) => {
-                  (e.target as HTMLElement).style.background = 'var(--surface-hover)';
+                  (e.currentTarget as HTMLElement).style.background = '#334155';
                 }}
                 onMouseLeave={(e) => {
-                  (e.target as HTMLElement).style.background = 'transparent';
+                  (e.currentTarget as HTMLElement).style.background = '#1e293b';
                 }}
               >
-                <Group justify="apart" align="start">
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <Text size="sm" weight="medium">
-                      {pkg.name}
-                    </Text>
-                    <Text
-                      size="sm"
-                      style={{
-                        color: 'var(--text-secondary)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {pkg.description}
-                    </Text>
-                  </div>
-                  <Badge size="sm" color="secondary">
-                    {pkg.version}
-                  </Badge>
-                </Group>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: '13px', color: '#e2e8f0', fontWeight: 500 }}>
+                    {pkg.name}
+                  </span>
+                </div>
+                <span style={{
+                  fontSize: '12px',
+                  color: '#94a3b8',
+                  flexShrink: 0,
+                }}>
+                  {pkg.version}
+                </span>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Installed Dependencies */}
-      <Stack spacing="xs">
+      {/* Installed Dependencies - CodeSandbox style */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
         {dependencyList.length === 0 ? (
-          <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
+          <Text size="sm" style={{ color: 'var(--text-secondary)', padding: '0.5rem 0' }}>
             No dependencies installed
           </Text>
         ) : (
           dependencyList.map(([name, version]) => (
-            <Group
+            <div
               key={name}
-              justify="apart"
-              align="center"
               style={{
-                padding: '0.5rem',
-                background: 'var(--surface-3)',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '6px 8px',
                 borderRadius: '4px',
+                gap: '8px',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
+                const actions = e.currentTarget.querySelector('.dep-actions') as HTMLElement;
+                if (actions) actions.style.opacity = '1';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = 'transparent';
+                const actions = e.currentTarget.querySelector('.dep-actions') as HTMLElement;
+                if (actions) actions.style.opacity = '0';
               }}
             >
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <Text size="sm" weight="medium" style={{ wordBreak: 'break-all' }}>
-                  {name}
-                </Text>
-                <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
-                  {version}
-                </Text>
+              <span style={{ fontSize: '14px' }}>📦</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: '13px', color: '#e2e8f0' }}>{name}</span>
+                <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '8px' }}>{version}</span>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                colorScheme="danger"
-                onClick={() => handleRemoveDependency(name)}
-                style={{ padding: '2px 6px', minWidth: 'auto' }}
+              <div
+                className="dep-actions"
+                style={{
+                  display: 'flex',
+                  gap: '4px',
+                  opacity: 0,
+                  transition: 'opacity 0.15s',
+                }}
               >
-                x
-              </Button>
-            </Group>
+                <button
+                  onClick={() => window.open(`https://www.npmjs.com/package/${name}`, '_blank')}
+                  title="View on npm"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    fontSize: '12px',
+                  }}
+                >
+                  ↗
+                </button>
+                <button
+                  onClick={() => handleRemoveDependency(name)}
+                  title="Remove dependency"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    fontSize: '12px',
+                  }}
+                >
+                  🗑
+                </button>
+              </div>
+            </div>
           ))
         )}
-      </Stack>
+      </div>
     </div>
   );
 }

@@ -133,7 +133,7 @@ export const useEditorStore = create<EditorStore>()(
       },
 
       createFile: (path, content = '') => {
-        const { files } = get();
+        const { files, unsavedChanges } = get();
         if (files.some((f) => f.path === path)) return;
 
         const newFile: ProjectFile = {
@@ -141,7 +141,10 @@ export const useEditorStore = create<EditorStore>()(
           content,
           language: getLanguageFromPath(path),
         };
-        set({ files: [...files, newFile] });
+        // Mark new file as unsaved so auto-save picks it up
+        const newUnsaved = new Set(unsavedChanges);
+        newUnsaved.add(path);
+        set({ files: [...files, newFile], unsavedChanges: newUnsaved });
       },
 
       deleteFile: (path) => {

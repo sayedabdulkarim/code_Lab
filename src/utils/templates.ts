@@ -76,7 +76,7 @@ h1 {
       'react-dom': '^18.2.0',
     },
     files: {
-      '/App.js': `export default function App() {
+      '/src/App.js': `export default function App() {
   return (
     <div className="App">
       <h1>Hello CodeLab!</h1>
@@ -84,7 +84,7 @@ h1 {
     </div>
   );
 }`,
-      '/index.js': `import { StrictMode } from "react";
+      '/src/index.js': `import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles.css";
@@ -95,7 +95,7 @@ root.render(
     <App />
   </StrictMode>
 );`,
-      '/styles.css': `* {
+      '/src/styles.css': `* {
   box-sizing: border-box;
 }
 
@@ -126,6 +126,15 @@ h1 {
     <div id="root"></div>
   </body>
 </html>`,
+      '/package.json': `{
+  "name": "react-app",
+  "version": "1.0.0",
+  "main": "/src/index.js",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}`,
     },
   },
   'react-ts': {
@@ -141,7 +150,7 @@ h1 {
       '@types/react-dom': '^18.2.0',
     },
     files: {
-      '/App.tsx': `export default function App(): JSX.Element {
+      '/src/App.tsx': `export default function App(): JSX.Element {
   return (
     <div className="App">
       <h1>Hello CodeLab!</h1>
@@ -149,7 +158,7 @@ h1 {
     </div>
   );
 }`,
-      '/index.tsx': `import { StrictMode } from "react";
+      '/src/index.tsx': `import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles.css";
@@ -160,7 +169,7 @@ root.render(
     <App />
   </StrictMode>
 );`,
-      '/styles.css': `* {
+      '/src/styles.css': `* {
   box-sizing: border-box;
 }
 
@@ -191,6 +200,20 @@ h1 {
     <div id="root"></div>
   </body>
 </html>`,
+      '/package.json': `{
+  "name": "react-ts-app",
+  "version": "1.0.0",
+  "main": "/src/index.tsx",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.0.0"
+  }
+}`,
     },
   },
 };

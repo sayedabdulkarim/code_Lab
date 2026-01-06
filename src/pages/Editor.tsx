@@ -31,9 +31,6 @@ const IFRAME_SHELL = `<!DOCTYPE html>
   <div id="__html__"></div>
   <script>
     var __lastJs__ = '';
-    var __instanceId__ = Math.random().toString(36).slice(2, 6);
-
-    console.log('[IFRAME ' + __instanceId__ + '] Shell loaded - sending ready');
 
     // Signal parent when ready
     window.parent.postMessage({ type: 'ready' }, '*');
@@ -41,13 +38,6 @@ const IFRAME_SHELL = `<!DOCTYPE html>
     // Listen for updates from parent
     window.addEventListener('message', function(e) {
       if (!e.data || e.data.type !== 'update') return;
-
-      console.log('[IFRAME ' + __instanceId__ + '] Received update:', {
-        hasHtml: !!e.data.html,
-        hasCss: !!e.data.css,
-        hasJs: !!e.data.js,
-        jsChanged: e.data.js !== __lastJs__
-      });
 
       // Update CSS (instant - no reload)
       if (e.data.css !== undefined) {
@@ -62,14 +52,13 @@ const IFRAME_SHELL = `<!DOCTYPE html>
       // Execute JS - wrap in IIFE to avoid redeclaration errors
       if (e.data.js !== undefined && e.data.js !== __lastJs__) {
         __lastJs__ = e.data.js;
-        console.log('[IFRAME ' + __instanceId__ + '] Executing JS');
         try {
           // Wrap in IIFE to create fresh scope (avoids const/let redeclaration errors)
           var wrappedCode = '(function() {\\n' + e.data.js + '\\n})();';
           var fn = new Function(wrappedCode);
           fn();
         } catch(err) {
-          console.error('[IFRAME ' + __instanceId__ + '] JS Error:', err.message);
+          console.error('JS Error:', err.message);
         }
       }
     });
@@ -85,16 +74,11 @@ const VanillaPreview = ({ files }: { files: ProjectFile[] }) => {
   const [previewUrl] = useState(() => `https://${Math.random().toString(36).slice(2, 8)}.preview.local/`);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const initializedRef = useRef(false);
-  const componentIdRef = useRef(Math.random().toString(36).slice(2, 6));
-
-  console.log('[PARENT ' + componentIdRef.current + '] Component render, isReady:', isReady, 'initialized:', initializedRef.current);
 
   // Set srcdoc only ONCE on mount (not through React render)
   useEffect(() => {
-    console.log('[PARENT ' + componentIdRef.current + '] Mount effect, initialized:', initializedRef.current);
     if (iframeRef.current && !initializedRef.current) {
       initializedRef.current = true;
-      console.log('[PARENT ' + componentIdRef.current + '] Setting srcdoc for first time');
       iframeRef.current.srcdoc = IFRAME_SHELL;
     }
   }, []);
@@ -133,13 +117,11 @@ const VanillaPreview = ({ files }: { files: ProjectFile[] }) => {
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (e.data?.type === 'ready') {
-        console.log('[PARENT ' + componentIdRef.current + '] Received ready from iframe');
         setIsReady(true);
         // Send initial content when iframe is ready
         const iframe = iframeRef.current;
         if (iframe?.contentWindow) {
           const { html, css, js } = getContents();
-          console.log('[PARENT ' + componentIdRef.current + '] Sending initial update');
           iframe.contentWindow.postMessage({ type: 'update', html, css, js }, '*');
         }
       }
@@ -148,9 +130,8 @@ const VanillaPreview = ({ files }: { files: ProjectFile[] }) => {
     return () => window.removeEventListener('message', handleMessage);
   }, [getContents]);
 
-  // Send updates to iframe when files change (NOT on initial render)
+  // Send updates to iframe when files change
   useEffect(() => {
-    console.log('[PARENT ' + componentIdRef.current + '] Files effect, isReady:', isReady);
     if (!isReady) return;
 
     const iframe = iframeRef.current;
@@ -163,7 +144,6 @@ const VanillaPreview = ({ files }: { files: ProjectFile[] }) => {
 
     debounceRef.current = setTimeout(() => {
       const { html, css, js } = getContents();
-      console.log('[PARENT ' + componentIdRef.current + '] Sending debounced update');
 
       // Send update to iframe - it will update DOM without reload
       iframe.contentWindow?.postMessage({
@@ -265,6 +245,146 @@ const getFileIcon = (path: string): string => {
   return icons[ext || ''] || '📄';
 };
 
+// Build file tree from flat file list
+interface FileTreeNode {
+  name: string;
+  path: string;
+  type: 'file' | 'folder';
+  children?: FileTreeNode[];
+}
+
+interface FileTreeBuildNode {
+  name: string;
+  path: string;
+  type: 'file' | 'folder';
+  childrenMap?: Record<string, FileTreeBuildNode>;
+}
+
+const buildFileTree = (files: { path: string }[]): FileTreeNode[] => {
+  const root: Record<string, FileTreeBuildNode> = {};
+
+  files.forEach(file => {
+    const parts = file.path.replace(/^\//, '').split('/');
+    let current = root;
+
+    parts.forEach((part, index) => {
+      const isFile = index === parts.length - 1;
+      const currentPath = '/' + parts.slice(0, index + 1).join('/');
+
+      if (!current[part]) {
+        current[part] = {
+          name: part,
+          path: currentPath,
+          type: isFile ? 'file' : 'folder',
+          childrenMap: isFile ? undefined : {},
+        };
+      }
+
+      if (!isFile && current[part].childrenMap) {
+        current = current[part].childrenMap!;
+      }
+    });
+  });
+
+  // Convert to array and sort (folders first, then files)
+  const toArray = (obj: Record<string, FileTreeBuildNode>): FileTreeNode[] => {
+    return Object.values(obj)
+      .map(node => ({
+        name: node.name,
+        path: node.path,
+        type: node.type,
+        children: node.childrenMap ? toArray(node.childrenMap) : undefined,
+      }))
+      .sort((a, b) => {
+        if (a.type === 'folder' && b.type === 'file') return -1;
+        if (a.type === 'file' && b.type === 'folder') return 1;
+        return a.name.localeCompare(b.name);
+      });
+  };
+
+  return toArray(root);
+};
+
+// File Tree Item Component
+const FileTreeItem = ({
+  node,
+  depth,
+  activeFile,
+  unsavedChanges,
+  expandedFolders,
+  selectedFolder,
+  onToggleFolder,
+  onOpenFile,
+}: {
+  node: FileTreeNode;
+  depth: number;
+  activeFile: string | null;
+  unsavedChanges: Set<string>;
+  expandedFolders: Set<string>;
+  selectedFolder: string | null;
+  onToggleFolder: (path: string) => void;
+  onOpenFile: (path: string) => void;
+}) => {
+  const isFolder = node.type === 'folder';
+  const isExpanded = expandedFolders.has(node.path);
+  const isActive = activeFile === node.path;
+  const isSelected = selectedFolder === node.path;
+
+  return (
+    <div>
+      <div
+        onClick={() => isFolder ? onToggleFolder(node.path) : onOpenFile(node.path)}
+        style={{
+          padding: '4px 8px',
+          paddingLeft: `${8 + depth * 12}px`,
+          borderRadius: '4px',
+          cursor: 'pointer',
+          background: isSelected ? 'rgba(99, 102, 241, 0.2)' : isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+          color: isSelected ? '#a5b4fc' : isActive ? '#818cf8' : '#e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          fontSize: '13px',
+          marginBottom: '1px',
+          borderLeft: isSelected ? '2px solid #818cf8' : '2px solid transparent',
+        }}
+        onMouseEnter={(e) => !isActive && !isSelected && ((e.target as HTMLElement).style.background = 'rgba(255,255,255,0.05)')}
+        onMouseLeave={(e) => !isActive && !isSelected && ((e.target as HTMLElement).style.background = 'transparent')}
+      >
+        {isFolder ? (
+          <span style={{ fontSize: '10px', color: '#64748b', width: '12px' }}>
+            {isExpanded ? '▼' : '▶'}
+          </span>
+        ) : (
+          <span style={{ width: '12px' }} />
+        )}
+        <span>{isFolder ? '📁' : getFileIcon(node.path)}</span>
+        <span style={{ flex: 1 }}>{node.name}</span>
+        {!isFolder && unsavedChanges.has(node.path) && (
+          <span style={{ color: '#eab308', fontSize: '10px' }}>●</span>
+        )}
+      </div>
+      {isFolder && isExpanded && node.children && (
+        <div>
+          {node.children.map(child => (
+            <FileTreeItem
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              activeFile={activeFile}
+              unsavedChanges={unsavedChanges}
+              expandedFolders={expandedFolders}
+              selectedFolder={selectedFolder}
+              onToggleFolder={onToggleFolder}
+              onOpenFile={onOpenFile}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function EditorPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -310,27 +430,107 @@ export default function EditorPage() {
   const [fileModalType, setFileModalType] = useState<'file' | 'folder'>('file');
   const [newFileName, setNewFileName] = useState('');
 
+  // Selected folder for context-aware file creation
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+
+  // Expanded folders state for file tree
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['/src', '/public']));
+
+  const toggleFolder = useCallback((path: string) => {
+    // Set this folder as selected
+    setSelectedFolder(path);
+    setExpandedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
+
+  // Build file tree from files
+  const fileTree = buildFileTree(files);
+
+  // Track if we've initialized files for this project
+  const initializedProjectRef = useRef<string | null>(null);
+
   // Fetch project on mount
   useEffect(() => {
     if (projectId) {
       fetchProject(projectId);
     }
-    return () => reset();
+    return () => {
+      reset();
+      initializedProjectRef.current = null;
+    };
   }, [projectId, fetchProject, reset]);
 
-  // Set files and dependencies when project loads
+  // Set files and dependencies ONLY when project first loads (not on every change)
   useEffect(() => {
-    if (currentProject?.files) {
-      setFiles(currentProject.files);
-      // Open first file by default
-      if (currentProject.files.length > 0 && !activeFile) {
-        setActiveFile(currentProject.files[0].path);
+    // Only initialize files once per project
+    if (currentProject?.id && initializedProjectRef.current !== currentProject.id) {
+      initializedProjectRef.current = currentProject.id;
+
+      if (currentProject.files) {
+        let projectFiles = [...currentProject.files];
+
+        // Auto-generate package.json if it doesn't exist (for React projects)
+        if (currentProject.template !== 'vanilla') {
+          const hasPackageJson = projectFiles.some(f => f.path === '/package.json' || f.path === 'package.json');
+          if (!hasPackageJson) {
+            const packageJson = {
+              name: currentProject.name?.toLowerCase().replace(/\s+/g, '-') || 'react-app',
+              version: '1.0.0',
+              main: '/src/index.js',
+              dependencies: currentProject.dependencies || {},
+            };
+            projectFiles.push({
+              path: '/package.json',
+              content: JSON.stringify(packageJson, null, 2),
+              language: 'json',
+            });
+          }
+        }
+
+        setFiles(projectFiles);
+        // Open first file by default
+        if (projectFiles.length > 0) {
+          const firstFile = projectFiles.find(f => f.path.endsWith('.js') || f.path.endsWith('.tsx') || f.path.endsWith('.ts'))
+            || projectFiles[0];
+          setActiveFile(firstFile.path);
+        }
+      }
+      if (currentProject.dependencies) {
+        setDependencies(currentProject.dependencies);
       }
     }
-    if (currentProject?.dependencies) {
-      setDependencies(currentProject.dependencies);
+  }, [currentProject, setFiles, setActiveFile, setDependencies]);
+
+  // Keep package.json in sync with dependencies (for React projects)
+  useEffect(() => {
+    if (currentProject?.template === 'vanilla' || !initializedProjectRef.current) return;
+
+    const packageJsonIndex = files.findIndex(f => f.path === '/package.json' || f.path === 'package.json');
+    if (packageJsonIndex === -1) return;
+
+    try {
+      const currentPackageJson = JSON.parse(files[packageJsonIndex].content);
+      const updatedPackageJson = {
+        ...currentPackageJson,
+        dependencies: dependencies,
+      };
+      const newContent = JSON.stringify(updatedPackageJson, null, 2);
+
+      // Only update if content actually changed
+      if (files[packageJsonIndex].content !== newContent) {
+        updateFileContent(files[packageJsonIndex].path, newContent);
+      }
+    } catch (e) {
+      // Invalid JSON, skip update
     }
-  }, [currentProject, setFiles, setActiveFile, setDependencies, activeFile]);
+  }, [dependencies, currentProject?.template, files, updateFileContent]);
 
   // Update save status based on unsaved changes
   useEffect(() => {
@@ -452,10 +652,19 @@ export default function EditorPage() {
   const handleFileModalSubmit = () => {
     if (!newFileName.trim()) return;
 
-    // Ensure path starts with /
-    let filePath = newFileName.trim();
-    if (!filePath.startsWith('/')) {
-      filePath = '/' + filePath;
+    // Build full path - prepend selected folder if exists
+    let fileName = newFileName.trim();
+    // Remove leading slash from input since we'll add the base path
+    if (fileName.startsWith('/')) {
+      fileName = fileName.slice(1);
+    }
+
+    // Combine selected folder with file name
+    let filePath: string;
+    if (selectedFolder) {
+      filePath = `${selectedFolder}/${fileName}`;
+    } else {
+      filePath = `/${fileName}`;
     }
 
     if (fileModalType === 'folder') {
@@ -466,6 +675,8 @@ export default function EditorPage() {
         return;
       }
       createFile(gitkeepPath, '');
+      // Expand the new folder
+      setExpandedFolders(prev => new Set([...prev, filePath]));
       toast.success('Folder created', `"${filePath}" has been created`);
     } else {
       // For file
@@ -525,11 +736,56 @@ export default function EditorPage() {
   }
 
   return (
-    <div
-      className="editor-page"
-      data-theme="dark"
-      style={{
-        height: '100vh',
+    <>
+      {/* Override Sandpack styles to fill height and improve console */}
+      <style>{`
+        .sp-wrapper {
+          height: 100% !important;
+        }
+        .sp-layout {
+          height: 100% !important;
+          border: none !important;
+          border-radius: 0 !important;
+        }
+        .sp-preview-container {
+          height: 100% !important;
+        }
+        .sp-preview-iframe {
+          height: 100% !important;
+        }
+        .sp-preview-actions {
+          display: none !important;
+        }
+        /* Console styling - cleaner look */
+        .sp-console {
+          background: #0d1117 !important;
+          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
+        }
+        .sp-console-item {
+          background: transparent !important;
+          border-bottom: 1px solid #21262d !important;
+          padding: 6px 12px !important;
+        }
+        .sp-console-item:hover {
+          background: rgba(255,255,255,0.03) !important;
+        }
+        .sp-console-item--log {
+          color: #e6edf3 !important;
+        }
+        .sp-console-item--warn {
+          background: rgba(210, 153, 34, 0.1) !important;
+          color: #d29922 !important;
+        }
+        .sp-console-item--error {
+          background: rgba(248, 81, 73, 0.1) !important;
+          color: #f85149 !important;
+        }
+      `}</style>
+      <div
+        className="editor-page"
+        data-theme="dark"
+        style={{
+          height: '100vh',
         display: 'flex',
         flexDirection: 'column',
         background: 'var(--surface-1)',
@@ -538,56 +794,95 @@ export default function EditorPage() {
       {/* Header */}
       <header
         style={{
-          height: 'var(--app-header-height, 56px)',
-          padding: '0 1rem',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--surface-2)',
+          height: '48px',
+          padding: '0 12px',
+          borderBottom: '1px solid #1e293b',
+          background: '#0f172a',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexShrink: 0,
         }}
       >
-        <Group gap="md" align="center">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
-            ← Back
-          </Button>
-          <Text size="md" weight="semibold">
-            {currentProject.name}
-          </Text>
-          <Badge size="sm" color="secondary">
-            {currentProject.template}
-          </Badge>
-          {/* Save Status Indicator */}
-          <Group gap="xs" align="center">
+        {/* Left side - Logo & Back */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={() => navigate('/dashboard')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'transparent',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: '6px 10px',
+              borderRadius: '6px',
+              fontSize: '13px',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            <span style={{ fontSize: '16px' }}>←</span>
+            <span>Dashboard</span>
+          </button>
+
+          <div style={{ width: '1px', height: '20px', background: '#334155' }} />
+
+          {/* Project name */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px', color: '#e2e8f0', fontWeight: 500 }}>
+              {currentProject.name}
+            </span>
+            <span style={{
+              fontSize: '11px',
+              color: '#64748b',
+              background: '#1e293b',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              textTransform: 'uppercase',
+            }}>
+              {currentProject.template}
+            </span>
+          </div>
+        </div>
+
+        {/* Right side - Status & Save */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Save Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span
               style={{
-                width: 8,
-                height: 8,
+                width: 6,
+                height: 6,
                 borderRadius: '50%',
                 background: getSaveStatusColor(),
               }}
             />
-            <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>
               {getSaveStatusText()}
-            </Text>
-          </Group>
-        </Group>
-        <Group gap="sm">
-          <Button variant="ghost" size="sm" onClick={() => setShowConsole(!showConsole)}>
-            Console
-          </Button>
-          <Button
-            variant="solid"
-            colorScheme="primary"
-            size="sm"
+            </span>
+          </div>
+
+          {/* Save Button */}
+          <button
             onClick={handleSave}
-            loading={saving}
-            disabled={unsavedChanges.size === 0}
+            disabled={saving || unsavedChanges.size === 0}
+            style={{
+              padding: '6px 16px',
+              borderRadius: '6px',
+              border: 'none',
+              background: unsavedChanges.size > 0 ? '#3b82f6' : '#334155',
+              color: unsavedChanges.size > 0 ? 'white' : '#64748b',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: unsavedChanges.size > 0 ? 'pointer' : 'default',
+              transition: 'all 0.15s',
+            }}
           >
-            Save
-          </Button>
-        </Group>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
       </header>
 
       {/* Main Editor Layout */}
@@ -639,35 +934,21 @@ export default function EditorPage() {
                 </button>
               </div>
             </div>
-            {files.length > 0 ? (
+            {fileTree.length > 0 ? (
               <div>
-                {files.map((file) => {
-                  const isActive = activeFile === file.path;
-                  return (
-                    <div
-                      key={file.path}
-                      onClick={() => openFile(file.path)}
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                        color: isActive ? '#818cf8' : '#e2e8f0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        marginBottom: '2px',
-                        fontSize: '13px',
-                      }}
-                    >
-                      <span>{getFileIcon(file.path)}</span>
-                      <span style={{ flex: 1 }}>{file.path.split('/').pop()}</span>
-                      {unsavedChanges.has(file.path) && (
-                        <span style={{ color: '#eab308' }}>●</span>
-                      )}
-                    </div>
-                  );
-                })}
+                {fileTree.map(node => (
+                  <FileTreeItem
+                    key={node.path}
+                    node={node}
+                    depth={0}
+                    activeFile={activeFile}
+                    unsavedChanges={unsavedChanges}
+                    expandedFolders={expandedFolders}
+                    selectedFolder={selectedFolder}
+                    onToggleFolder={toggleFolder}
+                    onOpenFile={openFile}
+                  />
+                ))}
               </div>
             ) : (
               <div style={{ color: '#64748b', padding: '1rem', fontSize: '13px' }}>
@@ -678,7 +959,13 @@ export default function EditorPage() {
 
           {/* Dependencies Section - only for React projects */}
           {currentProject?.template !== 'vanilla' && (
-            <div style={{ borderTop: '1px solid #374151', minHeight: '200px', overflow: 'auto' }}>
+            <div style={{
+              borderTop: '1px solid #374151',
+              minHeight: '280px',
+              maxHeight: '350px',
+              overflow: 'visible',
+              position: 'relative',
+            }}>
               <DependencyPanel
                 dependencies={dependencies}
                 onAddDependency={addDependency}
@@ -784,58 +1071,122 @@ export default function EditorPage() {
         {/* Preview Panel */}
         <div
           style={{
-            width: '40%',
-            minWidth: '300px',
+            width: '50%',
+            minWidth: '400px',
+            height: '100%',
             borderLeft: '1px solid #374151',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
           }}
         >
-{/* VanillaPreview - ALWAYS mounted, hidden via CSS when not vanilla */}
+          {/* VanillaPreview - ALWAYS mounted, hidden via CSS when not vanilla */}
           {/* Never unmount to prevent iframe reload */}
           <div style={{
-            height: '100%',
+            flex: 1,
             width: '100%',
             display: isVanilla ? 'flex' : 'none',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            minHeight: 0,
           }}>
             <VanillaPreview files={files} />
           </div>
 
           {/* Sandpack for React projects */}
-          {!isVanilla && files.length > 0 && (
-            <SandpackProvider
-              key={currentProject?.id}
-              template={getSandpackTemplate()}
-              files={sandpackFiles}
-              theme="dark"
-              options={{
-                autorun: true,
-                recompileMode: 'delayed',
-                recompileDelay: 500,
-              }}
-            >
-              <SandpackLayout style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <SandpackPreview
-                  showNavigator
-                  showRefreshButton
-                  style={{ flex: 1, minHeight: 0 }}
-                />
-                {showConsole && (
-                  <div style={{ height: '200px', borderTop: '1px solid #374151', flexShrink: 0 }}>
-                    <SandpackConsole />
-                  </div>
-                )}
-              </SandpackLayout>
-            </SandpackProvider>
-          )}
+          <div style={{
+            flex: 1,
+            display: isVanilla ? 'none' : 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            overflow: 'hidden',
+          }}>
+            {files.length > 0 ? (
+              <SandpackProvider
+                key={`${currentProject?.id}-${Object.keys(dependencies).join(',')}`}
+                template={getSandpackTemplate()}
+                files={sandpackFiles}
+                theme="dark"
+                customSetup={{
+                  dependencies: dependencies,
+                }}
+                options={{
+                  autorun: true,
+                  recompileMode: 'delayed',
+                  recompileDelay: 500,
+                }}
+              >
+                <SandpackLayout style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  {/* Preview area */}
+                  <SandpackPreview
+                    showNavigator
+                    showRefreshButton
+                    style={{ flex: 1, minHeight: 0 }}
+                  />
 
-          {!isVanilla && files.length === 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
-              Loading preview...
-            </div>
-          )}
+                  {/* Collapsible Console */}
+                  <div style={{
+                    borderTop: '1px solid #374151',
+                    background: '#0f172a',
+                    flexShrink: 0,
+                  }}>
+                    {/* Console Header - clickable to toggle */}
+                    <div
+                      onClick={() => setShowConsole(!showConsole)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        borderBottom: showConsole ? '1px solid #374151' : 'none',
+                        userSelect: 'none',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '10px', color: '#64748b' }}>
+                          {showConsole ? '▼' : '▶'}
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>
+                          Console
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#475569' }}>
+                          (Use "Open Sandbox" for full DevTools)
+                        </span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#64748b',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          padding: '2px 6px',
+                          display: showConsole ? 'block' : 'none',
+                        }}
+                        title="Clear console"
+                      >
+                        🗑
+                      </button>
+                    </div>
+
+                    {/* Console Content */}
+                    {showConsole && (
+                      <div style={{ height: '180px', overflow: 'auto' }}>
+                        <SandpackConsole />
+                      </div>
+                    )}
+                  </div>
+                </SandpackLayout>
+              </SandpackProvider>
+            ) : (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                Loading preview...
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -874,13 +1225,44 @@ export default function EditorPage() {
               {fileModalType === 'file' ? 'Create New File' : 'Create New Folder'}
             </h3>
 
+            {/* Show selected folder context */}
+            {selectedFolder && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.5rem 0.75rem',
+                background: 'rgba(99, 102, 241, 0.15)',
+                borderRadius: '6px',
+                marginBottom: '0.75rem',
+              }}>
+                <span style={{ fontSize: '13px', color: '#a5b4fc' }}>
+                  Creating in: <strong>{selectedFolder}/</strong>
+                </span>
+                <button
+                  onClick={() => setSelectedFolder(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    padding: '2px 6px',
+                  }}
+                  title="Create at root instead"
+                >
+                  ✕ Clear
+                </button>
+              </div>
+            )}
+
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '14px', color: '#94a3b8' }}>
-                {fileModalType === 'file' ? 'File Path' : 'Folder Path'}
+                {fileModalType === 'file' ? 'File Name' : 'Folder Name'}
               </label>
               <input
                 type="text"
-                placeholder={fileModalType === 'file' ? 'e.g., utils/helper.js' : 'e.g., components'}
+                placeholder={fileModalType === 'file' ? 'e.g., helper.js' : 'e.g., components'}
                 value={newFileName}
                 onChange={(e) => setNewFileName(e.target.value)}
                 onKeyDown={(e) => {
@@ -898,12 +1280,20 @@ export default function EditorPage() {
                   outline: 'none',
                 }}
               />
+              {/* Preview full path */}
+              {newFileName.trim() && (
+                <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#64748b' }}>
+                  Full path: <span style={{ color: '#94a3b8' }}>
+                    {selectedFolder ? `${selectedFolder}/${newFileName.trim().replace(/^\//, '')}` : `/${newFileName.trim().replace(/^\//, '')}`}
+                  </span>
+                </div>
+              )}
             </div>
 
             <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '1rem' }}>
-              {fileModalType === 'file'
-                ? 'Use "/" to create nested files (e.g., "src/utils/helpers.ts")'
-                : 'Use "/" to create nested folders (e.g., "src/components/ui")'}
+              {selectedFolder
+                ? 'Click a different folder to change location, or clear to create at root'
+                : 'Click a folder first to create inside it, or enter a path with "/"'}
             </p>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
@@ -944,5 +1334,6 @@ export default function EditorPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

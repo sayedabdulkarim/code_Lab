@@ -116,7 +116,7 @@ export default function Dashboard() {
           </Button>
           <Group gap="sm" align="center">
             <Avatar
-              src={user?.photoURL || undefined}
+              {...(user?.photoURL ? { src: user.photoURL } : {})}
               fallback={user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
               size="sm"
             />
@@ -311,64 +311,140 @@ export default function Dashboard() {
                   </Empty>
                 </div>
               ) : (
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 280px)',
-                    gap: '1rem'
-                  }}>
-                  {filteredProjects.map((project) => (
-                    <Card
+                <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: '1.25rem',
+                maxWidth: '1200px',
+              }}>
+                {filteredProjects.map((project) => {
+                  const templateColors: Record<string, { bg: string; icon: string; color: string }> = {
+                    react: { bg: 'linear-gradient(135deg, #1a365d 0%, #2563eb 100%)', icon: '⚛️', color: '#61dafb' },
+                    'react-ts': { bg: 'linear-gradient(135deg, #1e3a5f 0%, #3b82f6 100%)', icon: '⚛️', color: '#3178c6' },
+                    vanilla: { bg: 'linear-gradient(135deg, #422006 0%, #d97706 100%)', icon: '🟨', color: '#f7df1e' },
+                  };
+                  const templateStyle = templateColors[project.template] || templateColors.vanilla;
+
+                  return (
+                    <div
                       key={project.id}
-                      variant="outlined"
-                      size="md"
-                      hoverable
                       onClick={() => navigate(`/editor/${project.id}`)}
-                      style={{ cursor: 'pointer' }}
+                      style={{
+                        background: '#1e293b',
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        border: '1px solid #334155',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.3)';
+                        e.currentTarget.style.borderColor = '#475569';
+                        const actions = e.currentTarget.querySelector('.card-actions') as HTMLElement;
+                        if (actions) actions.style.opacity = '1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.borderColor = '#334155';
+                        const actions = e.currentTarget.querySelector('.card-actions') as HTMLElement;
+                        if (actions) actions.style.opacity = '0';
+                      }}
                     >
-                      <Stack spacing="sm">
-                        <Group justify="apart" align="start">
-                          <Text size="md" weight="semibold" style={{ flex: 1 }}>
-                            {project.name}
-                          </Text>
-                          <Badge size="sm" color="secondary">
-                            {project.template}
-                          </Badge>
-                        </Group>
-                        <Text
-                          size="sm"
-                          style={{
-                            color: 'var(--text-secondary)',
+                      {/* Preview Thumbnail */}
+                      <div style={{
+                        height: '140px',
+                        background: templateStyle.bg,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
+                      }}>
+                        <span style={{ fontSize: '48px', opacity: 0.9 }}>{templateStyle.icon}</span>
+                        {/* Template Badge */}
+                        <span style={{
+                          position: 'absolute',
+                          top: '10px',
+                          right: '10px',
+                          background: 'rgba(0,0,0,0.4)',
+                          color: templateStyle.color,
+                          padding: '4px 10px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          backdropFilter: 'blur(4px)',
+                        }}>
+                          {project.template}
+                        </span>
+                      </div>
+
+                      {/* Card Content */}
+                      <div style={{ padding: '16px' }}>
+                        <div style={{ marginBottom: '8px' }}>
+                          <h3 style={{
+                            margin: 0,
+                            fontSize: '15px',
+                            fontWeight: 600,
+                            color: '#f1f5f9',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                          }}
-                        >
-                          {project.description || 'No description'}
-                        </Text>
-                        <Group justify="apart" align="center">
-                          <Text size="sm" style={{ color: 'var(--text-tertiary)' }}>
-                            Updated {project.updatedAt?.toLocaleDateString() || 'recently'}
-                          </Text>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            colorScheme="danger"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteProject(project.id);
-                            }}
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {project.name}
+                          </h3>
+                          <p style={{
+                            margin: '4px 0 0',
+                            fontSize: '13px',
+                            color: '#64748b',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {project.description || 'No description'}
+                          </p>
+                        </div>
+
+                        {/* Footer */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          paddingTop: '12px',
+                          borderTop: '1px solid #334155',
+                        }}>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>
+                            {project.updatedAt?.toLocaleDateString() || 'Recently'}
+                          </span>
+                          <div
+                            className="card-actions"
+                            style={{ opacity: 0, transition: 'opacity 0.15s' }}
                           >
-                            Delete
-                          </Button>
-                        </Group>
-                      </Stack>
-                    </Card>
-                  ))}
-                  </div>
-                </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteProject(project.id);
+                              }}
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: 'none',
+                                color: '#f87171',
+                                padding: '4px 10px',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
               )}
             </Stack>
           )}
