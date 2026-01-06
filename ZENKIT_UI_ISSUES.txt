@@ -1,0 +1,102 @@
+================================================================================
+                    ZENKIT UI COMPONENTS - ISSUES FOUND
+================================================================================
+
+Project: CodeLab
+Date: January 2026
+
+================================================================================
+COMPONENTS THAT DID NOT WORK
+================================================================================
+
+1. AppShell (AppShell, AppShellHeader, AppShellNavbar, AppShellMain)
+   ---------------------------------------------------------------------
+   ISSUE: Layout completely broken - header, sidebar, and main content
+          all overlap each other instead of being in proper positions.
+
+   WORKAROUND: Replaced with custom flexbox layout using native HTML
+              elements (header, aside, main) with inline CSS styles.
+
+
+2. Sidebar (Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarItem)
+   ---------------------------------------------------------------------
+   ISSUE: Part of broken AppShell layout. Sidebar items were cut off on
+          the left side, icons partially hidden, and text from main
+          content was bleeding through the sidebar.
+
+   WORKAROUND: Replaced with custom buttons and divs with explicit
+              inline styles and colors.
+
+
+3. Modal
+   ---------------------------------------------------------------------
+   ISSUE: Modal was not clickable at all. Could not type in input fields,
+          could not click template cards, could not click buttons.
+          Appears to be a z-index issue where the modal backdrop or
+          some overlay was blocking all pointer events.
+
+   WORKAROUND: Replaced with custom modal implementation using:
+              - Fixed positioning (position: fixed, top/left/right/bottom: 0)
+              - High z-index (z-index: 9999)
+              - Native HTML inputs and buttons
+              - onClick stopPropagation to prevent closing when clicking inside
+
+
+4. Grid
+   ---------------------------------------------------------------------
+   ISSUE: Grid columns not rendering properly. Layout was broken and
+          items were not aligning in the expected grid format.
+
+   WORKAROUND: Replaced with native CSS grid using inline styles:
+              display: 'grid'
+              gridTemplateColumns: 'repeat(2, 1fr)' or 'repeat(3, 280px)'
+
+
+5. Splitter (Splitter, SplitterPanel)
+   ---------------------------------------------------------------------
+   ISSUE: Splitter layout completely broken in Editor page. Panels were
+          not sizing correctly, content was cut off, and the three-panel
+          layout (file explorer, editor, preview) was not rendering properly.
+
+   WORKAROUND: Replaced with CSS flexbox layout using fixed widths and
+              flex: 1 for the code editor panel.
+
+
+6. ContextMenu
+   ---------------------------------------------------------------------
+   ISSUE: Not tested thoroughly but removed along with other broken components.
+
+   WORKAROUND: Removed context menu functionality for now. Can add back
+              using native right-click events if needed.
+
+
+================================================================================
+COMPONENTS THAT WORKED FINE
+================================================================================
+
+- Button (all variants: solid, outline, ghost)
+- Card (outlined, filled variants)
+- Text
+- Stack
+- Group
+- Badge
+- Input
+- Alert
+- Avatar
+- Empty
+- Skeleton
+- FormItem
+- Container
+- Divider
+
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+1. Fix AppShell component - check CSS positioning and z-index
+2. Fix Modal component - ensure modal content has higher z-index than backdrop
+3. Fix Grid component - verify CSS grid implementation
+4. Add proper testing for layout components before publishing
+
+================================================================================

@@ -31,14 +31,9 @@ export interface ProjectFile {
 }
 
 export type ProjectTemplate =
-  | 'react'
-  | 'react-ts'
   | 'vanilla'
-  | 'vanilla-ts'
-  | 'vue'
-  | 'angular'
-  | 'svelte'
-  | 'nextjs';
+  | 'react'
+  | 'react-ts';
 
 // Editor types
 export interface EditorState {

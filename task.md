@@ -209,3 +209,4 @@ During development, if any component is missing:
 - If component missing, add to ZenkitUI, publish, then use
 - Keep zenkit-css updated if new styles needed
 - Test on Chrome, Firefox, Safari
+- See ZENKIT_UI_ISSUES.txt for components that had issues

@@ -6,12 +6,8 @@ import {
   Text,
   Stack,
   Group,
-  Grid,
   Badge,
-  Input,
-  Modal,
   Alert,
-  FormItem,
   Avatar,
   Empty,
   Skeleton,
@@ -100,7 +96,7 @@ export default function Dashboard() {
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 100,
+        zIndex: 50,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -144,14 +140,15 @@ export default function Dashboard() {
           top: '56px',
           left: 0,
           bottom: 0,
-          overflow: 'auto'
+          overflow: 'auto',
+          zIndex: 40
         }}>
           <div style={{ padding: '1rem' }}>
             <Text size="sm" weight="semibold" style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
               Navigation
             </Text>
-            <Stack spacing="xs">
-              <div
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <button
                 onClick={() => setActiveNav('recent')}
                 style={{
                   padding: '0.5rem 0.75rem',
@@ -160,13 +157,17 @@ export default function Dashboard() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem',
-                  background: activeNav === 'recent' ? 'var(--primary-alpha)' : 'transparent',
-                  color: activeNav === 'recent' ? 'var(--primary)' : 'var(--text-primary)'
+                  background: activeNav === 'recent' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                  color: activeNav === 'recent' ? '#818cf8' : '#e2e8f0',
+                  border: 'none',
+                  textAlign: 'left',
+                  fontSize: '14px',
+                  width: '100%'
                 }}
               >
                 <span>🕐</span> Recent
-              </div>
-              <div
+              </button>
+              <button
                 onClick={() => setActiveNav('all')}
                 style={{
                   padding: '0.5rem 0.75rem',
@@ -175,13 +176,17 @@ export default function Dashboard() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem',
-                  background: activeNav === 'all' ? 'var(--primary-alpha)' : 'transparent',
-                  color: activeNav === 'all' ? 'var(--primary)' : 'var(--text-primary)'
+                  background: activeNav === 'all' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                  color: activeNav === 'all' ? '#818cf8' : '#e2e8f0',
+                  border: 'none',
+                  textAlign: 'left',
+                  fontSize: '14px',
+                  width: '100%'
                 }}
               >
                 <span>📁</span> All Projects
-              </div>
-              <div
+              </button>
+              <button
                 onClick={() => setActiveNav('settings')}
                 style={{
                   padding: '0.5rem 0.75rem',
@@ -190,13 +195,17 @@ export default function Dashboard() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem',
-                  background: activeNav === 'settings' ? 'var(--primary-alpha)' : 'transparent',
-                  color: activeNav === 'settings' ? 'var(--primary)' : 'var(--text-primary)'
+                  background: activeNav === 'settings' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                  color: activeNav === 'settings' ? '#818cf8' : '#e2e8f0',
+                  border: 'none',
+                  textAlign: 'left',
+                  fontSize: '14px',
+                  width: '100%'
                 }}
               >
                 <span>⚙️</span> Settings
-              </div>
-            </Stack>
+              </button>
+            </div>
           </div>
         </aside>
 
@@ -367,76 +376,173 @@ export default function Dashboard() {
       </div>
 
       {/* New Project Modal */}
-      <Modal
-        isOpen={showNewProjectModal}
-        onClose={() => setShowNewProjectModal(false)}
-        title="Create New Project"
-        size="md"
-      >
-        <Stack spacing="lg">
-          <FormItem label="Project Name">
-            <Input
-              placeholder="My Awesome Project"
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              required
-            />
-          </FormItem>
-          <FormItem label="Description">
-            <Input
-              placeholder="A brief description of your project"
-              value={newProjectDescription}
-              onChange={(e) => setNewProjectDescription(e.target.value)}
-            />
-          </FormItem>
-          <div>
-            <Text size="sm" weight="medium" style={{ marginBottom: '0.5rem' }}>
-              Template
-            </Text>
-            <Grid columns={2} gap={2}>
-              {templates.map((template) => (
-                <Card
-                  key={template.id}
-                  variant={selectedTemplate === template.id ? 'filled' : 'outlined'}
-                  size="sm"
-                  onClick={() => setSelectedTemplate(template.id)}
+      {showNewProjectModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+          onClick={() => setShowNewProjectModal(false)}
+        >
+          <div
+            style={{
+              background: '#1e293b',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              width: '100%',
+              maxWidth: '500px',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#f1f5f9' }}>Create New Project</h2>
+              <button
+                onClick={() => setShowNewProjectModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '14px', color: '#94a3b8' }}>
+                  Project Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="My Awesome Project"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
                   style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #374151',
+                    background: '#0f172a',
+                    color: '#f1f5f9',
+                    fontSize: '14px',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '14px', color: '#94a3b8' }}>
+                  Description
+                </label>
+                <input
+                  type="text"
+                  placeholder="A brief description of your project"
+                  value={newProjectDescription}
+                  onChange={(e) => setNewProjectDescription(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #374151',
+                    background: '#0f172a',
+                    color: '#f1f5f9',
+                    fontSize: '14px',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '14px', color: '#94a3b8' }}>
+                  Template
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
+                  {templates.map((template) => {
+                    const iconMap: Record<string, string> = {
+                      javascript: '🟨',
+                      react: '⚛️',
+                    };
+                    const isSelected = selectedTemplate === template.id;
+                    return (
+                      <div
+                        key={template.id}
+                        onClick={() => setSelectedTemplate(template.id)}
+                        style={{
+                          cursor: 'pointer',
+                          padding: '0.75rem',
+                          borderRadius: '8px',
+                          border: isSelected ? '2px solid #818cf8' : '1px solid #374151',
+                          background: isSelected ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '1.25rem' }}>{iconMap[template.icon] || '📄'}</span>
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: 500, color: '#e2e8f0' }}>
+                              {template.name}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#9ca3af' }}>
+                              {template.description}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  onClick={() => setShowNewProjectModal(false)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: '#818cf8',
+                    fontSize: '14px',
                     cursor: 'pointer',
-                    borderColor:
-                      selectedTemplate === template.id ? 'var(--primary)' : undefined,
                   }}
                 >
-                  <Group gap="sm" align="center">
-                    <span style={{ fontSize: '1.25rem' }}>{template.icon === 'react' ? '⚛️' : '📄'}</span>
-                    <div>
-                      <Text size="sm" weight="medium">
-                        {template.name}
-                      </Text>
-                      <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
-                        {template.description}
-                      </Text>
-                    </div>
-                  </Group>
-                </Card>
-              ))}
-            </Grid>
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateProject}
+                  disabled={!newProjectName.trim() || creating}
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: newProjectName.trim() ? '#6366f1' : '#4b5563',
+                    color: 'white',
+                    fontSize: '14px',
+                    cursor: newProjectName.trim() ? 'pointer' : 'not-allowed',
+                    opacity: creating ? 0.7 : 1,
+                  }}
+                >
+                  {creating ? 'Creating...' : 'Create Project'}
+                </button>
+              </div>
+            </div>
           </div>
-          <Group justify="right" gap="md">
-            <Button variant="ghost" onClick={() => setShowNewProjectModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="solid"
-              colorScheme="primary"
-              onClick={handleCreateProject}
-              loading={creating}
-              disabled={!newProjectName.trim()}
-            >
-              Create Project
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+        </div>
+      )}
     </div>
   );
 }

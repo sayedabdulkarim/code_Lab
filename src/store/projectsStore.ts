@@ -144,7 +144,9 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
   },
 
   updateProject: async (projectId, updates) => {
-    set({ loading: true, error: null });
+    // Don't set loading: true here - it causes the entire editor to unmount!
+    // The editor has its own saving state indicator
+    set({ error: null });
     try {
       const docRef = doc(db, 'projects', projectId);
       await updateDoc(docRef, {
@@ -162,10 +164,9 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
         projects: projects.map((p) =>
           p.id === projectId ? { ...p, ...updates } : p
         ),
-        loading: false,
       });
     } catch (error: any) {
-      set({ error: error.message, loading: false });
+      set({ error: error.message });
       throw error;
     }
   },

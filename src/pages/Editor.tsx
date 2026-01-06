@@ -5,6 +5,7 @@ import {
   SandpackProvider,
   SandpackPreview,
   SandpackConsole,
+  SandpackLayout,
 } from '@codesandbox/sandpack-react';
 import {
   Button,
@@ -13,16 +14,237 @@ import {
   Stack,
   Spinner,
   Badge,
-  Splitter,
-  SplitterPanel,
-  ContextMenu,
-  Modal,
-  Input,
-  FormItem,
 } from 'ui_zenkit';
-import type { ContextMenuItem, TreeNode } from 'ui_zenkit';
 import { useProjectsStore, useEditorStore, useToastStore } from '../store';
 import { DependencyPanel } from '../components/DependencyPanel';
+import type { ProjectFile } from '../types';
+
+// The iframe shell HTML - defined OUTSIDE component to prevent re-creation
+const IFRAME_SHELL = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style id="__css__"></style>
+</head>
+<body>
+  <div id="__html__"></div>
+  <script>
+    var __lastJs__ = '';
+    var __instanceId__ = Math.random().toString(36).slice(2, 6);
+
+    console.log('[IFRAME ' + __instanceId__ + '] Shell loaded - sending ready');
+
+    // Signal parent when ready
+    window.parent.postMessage({ type: 'ready' }, '*');
+
+    // Listen for updates from parent
+    window.addEventListener('message', function(e) {
+      if (!e.data || e.data.type !== 'update') return;
+
+      console.log('[IFRAME ' + __instanceId__ + '] Received update:', {
+        hasHtml: !!e.data.html,
+        hasCss: !!e.data.css,
+        hasJs: !!e.data.js,
+        jsChanged: e.data.js !== __lastJs__
+      });
+
+      // Update CSS (instant - no reload)
+      if (e.data.css !== undefined) {
+        document.getElementById('__css__').textContent = e.data.css;
+      }
+
+      // Update HTML (instant - no reload)
+      if (e.data.html !== undefined) {
+        document.getElementById('__html__').innerHTML = e.data.html;
+      }
+
+      // Execute JS - wrap in IIFE to avoid redeclaration errors
+      if (e.data.js !== undefined && e.data.js !== __lastJs__) {
+        __lastJs__ = e.data.js;
+        console.log('[IFRAME ' + __instanceId__ + '] Executing JS');
+        try {
+          // Wrap in IIFE to create fresh scope (avoids const/let redeclaration errors)
+          var wrappedCode = '(function() {\\n' + e.data.js + '\\n})();';
+          var fn = new Function(wrappedCode);
+          fn();
+        } catch(err) {
+          console.error('[IFRAME ' + __instanceId__ + '] JS Error:', err.message);
+        }
+      }
+    });
+  </script>
+</body>
+</html>`;
+
+// Vanilla Preview Component - Live updates WITHOUT page reload
+// Based on: https://joyofcode.xyz/avoid-flashing-iframe
+const VanillaPreview = ({ files }: { files: ProjectFile[] }) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [isReady, setIsReady] = useState(false);
+  const [previewUrl] = useState(() => `https://${Math.random().toString(36).slice(2, 8)}.preview.local/`);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const initializedRef = useRef(false);
+  const componentIdRef = useRef(Math.random().toString(36).slice(2, 6));
+
+  console.log('[PARENT ' + componentIdRef.current + '] Component render, isReady:', isReady, 'initialized:', initializedRef.current);
+
+  // Set srcdoc only ONCE on mount (not through React render)
+  useEffect(() => {
+    console.log('[PARENT ' + componentIdRef.current + '] Mount effect, initialized:', initializedRef.current);
+    if (iframeRef.current && !initializedRef.current) {
+      initializedRef.current = true;
+      console.log('[PARENT ' + componentIdRef.current + '] Setting srcdoc for first time');
+      iframeRef.current.srcdoc = IFRAME_SHELL;
+    }
+  }, []);
+
+  // Extract body content from HTML (without doctype, html, head, body tags)
+  const extractBodyContent = useCallback((html: string): string => {
+    if (!html) return '';
+
+    // Try to extract content between <body> tags
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    if (bodyMatch) {
+      let content = bodyMatch[1];
+      // Remove script tags (we handle JS separately)
+      content = content.replace(/<script[\s\S]*?<\/script>/gi, '');
+      return content.trim();
+    }
+
+    // If no body tags, return as-is but remove scripts
+    return html.replace(/<script[\s\S]*?<\/script>/gi, '').trim();
+  }, []);
+
+  // Get file contents
+  const getContents = useCallback(() => {
+    const htmlFile = files.find(f => f.path === '/index.html' || f.path === 'index.html');
+    const cssFile = files.find(f => f.path.endsWith('.css'));
+    const jsFile = files.find(f => f.path.endsWith('.js') && !f.path.includes('package.json'));
+
+    return {
+      html: extractBodyContent(htmlFile?.content || ''),
+      css: cssFile?.content || '',
+      js: jsFile?.content || '',
+    };
+  }, [files, extractBodyContent]);
+
+  // Listen for ready signal from iframe
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'ready') {
+        console.log('[PARENT ' + componentIdRef.current + '] Received ready from iframe');
+        setIsReady(true);
+        // Send initial content when iframe is ready
+        const iframe = iframeRef.current;
+        if (iframe?.contentWindow) {
+          const { html, css, js } = getContents();
+          console.log('[PARENT ' + componentIdRef.current + '] Sending initial update');
+          iframe.contentWindow.postMessage({ type: 'update', html, css, js }, '*');
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [getContents]);
+
+  // Send updates to iframe when files change (NOT on initial render)
+  useEffect(() => {
+    console.log('[PARENT ' + componentIdRef.current + '] Files effect, isReady:', isReady);
+    if (!isReady) return;
+
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow) return;
+
+    // Debounce updates
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      const { html, css, js } = getContents();
+      console.log('[PARENT ' + componentIdRef.current + '] Sending debounced update');
+
+      // Send update to iframe - it will update DOM without reload
+      iframe.contentWindow?.postMessage({
+        type: 'update',
+        html,
+        css,
+        js,
+      }, '*');
+    }, 150); // Fast 150ms debounce
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [files, isReady, getContents]);
+
+  // Manual refresh - force iframe to reload
+  const handleRefresh = useCallback(() => {
+    setIsReady(false);
+    initializedRef.current = false;
+    if (iframeRef.current) {
+      iframeRef.current.srcdoc = IFRAME_SHELL;
+    }
+  }, []);
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#fff' }}>
+      {/* Toolbar */}
+      <div style={{
+        height: '40px',
+        background: '#1e1e1e',
+        borderBottom: '1px solid #374151',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 8px',
+        gap: '4px',
+      }}>
+        <button
+          onClick={handleRefresh}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: '#94a3b8',
+            cursor: 'pointer',
+            fontSize: '14px',
+            padding: '6px 8px',
+            borderRadius: '4px',
+          }}
+          title="Refresh"
+        >
+          ↻
+        </button>
+        <div style={{
+          flex: 1,
+          background: '#0f172a',
+          borderRadius: '4px',
+          padding: '6px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+        }}>
+          <span style={{ color: '#10b981', fontSize: '11px' }}>●</span>
+          <span style={{ color: '#e2e8f0', fontSize: '12px', fontFamily: 'monospace' }}>
+            {previewUrl}
+          </span>
+        </div>
+      </div>
+      {/* Iframe - srcdoc set imperatively, NOT through React */}
+      <iframe
+        ref={iframeRef}
+        title="Preview"
+        sandbox="allow-scripts allow-modals"
+        style={{
+          flex: 1,
+          width: '100%',
+          border: 'none',
+          background: '#fff',
+        }}
+      />
+    </div>
+  );
+};
 
 // File icon helper
 const getFileIcon = (path: string): string => {
@@ -62,8 +284,6 @@ export default function EditorPage() {
     updateFileContent,
     markSaved,
     createFile,
-    deleteFile,
-    renameFile,
     setDependencies,
     addDependency,
     removeDependency,
@@ -77,11 +297,18 @@ export default function EditorPage() {
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Track template type to prevent unmounting during save
+  // Once set to vanilla, stay vanilla until explicitly changed to another template
+  const templateRef = useRef<string | null>(null);
+  if (currentProject?.template && templateRef.current !== currentProject.template) {
+    templateRef.current = currentProject.template;
+  }
+  const isVanilla = templateRef.current === 'vanilla';
+
   // File modal state
   const [showFileModal, setShowFileModal] = useState(false);
-  const [fileModalMode, setFileModalMode] = useState<'create' | 'rename'>('create');
+  const [fileModalType, setFileModalType] = useState<'file' | 'folder'>('file');
   const [newFileName, setNewFileName] = useState('');
-  const [fileToRename, setFileToRename] = useState<string | null>(null);
 
   // Fetch project on mount
   useEffect(() => {
@@ -171,7 +398,9 @@ export default function EditorPage() {
   // Convert files to Sandpack format
   const sandpackFiles = files.reduce(
     (acc, file) => {
-      acc[file.path] = { code: file.content };
+      // Ensure path starts with / for Sandpack
+      const path = file.path.startsWith('/') ? file.path : `/${file.path}`;
+      acc[path] = { code: file.content };
       return acc;
     },
     {} as Record<string, { code: string }>
@@ -181,15 +410,12 @@ export default function EditorPage() {
   const getSandpackTemplate = () => {
     switch (currentProject?.template) {
       case 'react':
+        return 'react' as const;
       case 'react-ts':
-        return 'react';
-      case 'vue':
-        return 'vue';
+        return 'react-ts' as const;
       case 'vanilla':
-      case 'vanilla-ts':
-        return 'vanilla';
       default:
-        return 'react';
+        return 'vanilla' as const;
     }
   };
 
@@ -216,136 +442,45 @@ export default function EditorPage() {
     }
   };
 
-  // Convert flat files to tree structure
-  const buildFileTree = useCallback((): TreeNode[] => {
-    const tree: TreeNode[] = [];
-    const pathMap = new Map<string, TreeNode>();
-
-    // Sort files to ensure folders appear before their contents
-    const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path));
-
-    sortedFiles.forEach((file) => {
-      const parts = file.path.split('/').filter(Boolean);
-      let currentPath = '';
-
-      parts.forEach((part, index) => {
-        const parentPath = currentPath;
-        currentPath = currentPath ? `${currentPath}/${part}` : part;
-        const isFile = index === parts.length - 1;
-
-        if (!pathMap.has(currentPath)) {
-          const node: TreeNode = {
-            key: currentPath,
-            title: (
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>{isFile ? getFileIcon(currentPath) : '📁'}</span>
-                <span>{part}</span>
-                {isFile && unsavedChanges.has(file.path) && (
-                  <span style={{ color: 'var(--warning)', fontSize: '10px' }}>●</span>
-                )}
-              </span>
-            ),
-            isLeaf: isFile,
-            children: isFile ? undefined : [],
-          };
-          pathMap.set(currentPath, node);
-
-          if (parentPath && pathMap.has(parentPath)) {
-            pathMap.get(parentPath)!.children!.push(node);
-          } else if (!parentPath) {
-            tree.push(node);
-          }
-        }
-      });
-    });
-
-    return tree;
-  }, [files, unsavedChanges]);
-
   // File operations
-  const handleCreateFile = () => {
-    setFileModalMode('create');
+  const handleCreateFile = (type: 'file' | 'folder') => {
+    setFileModalType(type);
     setNewFileName('');
     setShowFileModal(true);
-  };
-
-  const handleRenameFileStart = (path: string) => {
-    setFileModalMode('rename');
-    setFileToRename(path);
-    setNewFileName(path.split('/').pop() || '');
-    setShowFileModal(true);
-  };
-
-  const handleDeleteFile = (path: string) => {
-    if (window.confirm(`Are you sure you want to delete "${path.split('/').pop()}"?`)) {
-      deleteFile(path);
-      toast.success('File deleted', `"${path.split('/').pop()}" has been deleted`);
-    }
   };
 
   const handleFileModalSubmit = () => {
     if (!newFileName.trim()) return;
 
-    if (fileModalMode === 'create') {
-      // Determine path based on folder structure
-      const filePath = newFileName.startsWith('/') ? newFileName.slice(1) : newFileName;
+    // Ensure path starts with /
+    let filePath = newFileName.trim();
+    if (!filePath.startsWith('/')) {
+      filePath = '/' + filePath;
+    }
+
+    if (fileModalType === 'folder') {
+      // For folder, add a .gitkeep file to represent the folder
+      const gitkeepPath = filePath.endsWith('/') ? filePath + '.gitkeep' : filePath + '/.gitkeep';
+      if (files.some((f) => f.path === gitkeepPath)) {
+        toast.error('Folder exists', 'A folder with this name already exists');
+        return;
+      }
+      createFile(gitkeepPath, '');
+      toast.success('Folder created', `"${filePath}" has been created`);
+    } else {
+      // For file
       if (files.some((f) => f.path === filePath)) {
         toast.error('File exists', 'A file with this name already exists');
         return;
       }
       createFile(filePath);
       openFile(filePath);
-      toast.success('File created', `"${filePath}" has been created`);
-    } else if (fileModalMode === 'rename' && fileToRename) {
-      const parts = fileToRename.split('/');
-      parts[parts.length - 1] = newFileName.trim();
-      const newPath = parts.join('/');
-      if (files.some((f) => f.path === newPath && f.path !== fileToRename)) {
-        toast.error('File exists', 'A file with this name already exists');
-        return;
-      }
-      renameFile(fileToRename, newPath);
-      toast.success('File renamed', `File renamed to "${newFileName.trim()}"`);
+      toast.success('File created', `"${filePath.split('/').pop()}" has been created`);
     }
 
     setShowFileModal(false);
     setNewFileName('');
-    setFileToRename(null);
   };
-
-  // Context menu items for files
-  const getContextMenuItems = (path: string, isFolder: boolean): ContextMenuItem[] => {
-    if (isFolder) {
-      return [
-        {
-          key: 'new-file',
-          label: 'New File',
-          onSelect: () => {
-            setFileModalMode('create');
-            setNewFileName(`${path}/`);
-            setShowFileModal(true);
-          },
-        },
-      ];
-    }
-
-    return [
-      {
-        key: 'rename',
-        label: 'Rename',
-        shortcut: 'F2',
-        onSelect: () => handleRenameFileStart(path),
-      },
-      {
-        key: 'delete',
-        label: 'Delete',
-        danger: true,
-        onSelect: () => handleDeleteFile(path),
-      },
-    ];
-  };
-
-  const fileTree = buildFileTree();
 
   if (projectLoading) {
     return (
@@ -455,267 +590,359 @@ export default function EditorPage() {
         </Group>
       </header>
 
-      {/* Main Editor Layout with Splitter */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <Splitter orientation="horizontal" defaultSizes={[20, 40, 40]} gutterSize={4}>
-          {/* File Explorer Panel */}
-          <SplitterPanel minSize={150}>
-            <div
-              style={{
-                height: '100%',
-                borderRight: '1px solid var(--border)',
-                background: 'var(--surface-2)',
-                overflow: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              {/* Files Section */}
-              <div style={{ padding: '0.75rem', flex: 1, minHeight: 0, overflow: 'auto' }}>
-                <Group justify="apart" align="center" style={{ marginBottom: '0.5rem' }}>
-                  <Text size="sm" weight="medium" style={{ color: 'var(--text-secondary)' }}>
-                    FILES
-                  </Text>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleCreateFile}
-                    style={{ padding: '2px 6px', minWidth: 'auto' }}
-                  >
-                    +
-                  </Button>
-                </Group>
-                {fileTree.length > 0 ? (
-                  <div className="file-tree-wrapper">
-                    {files.map((file) => {
-                      const isActive = activeFile === file.path;
-                      return (
-                        <ContextMenu
-                          key={file.path}
-                          items={getContextMenuItems(file.path, false)}
-                        >
-                          <div
-                            onClick={() => openFile(file.path)}
-                            style={{
-                              padding: '0.5rem 0.75rem',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              background: isActive ? 'var(--primary-alpha)' : 'transparent',
-                              color: isActive ? 'var(--primary)' : 'var(--text-primary)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '2px',
-                            }}
-                          >
-                            <span>{getFileIcon(file.path)}</span>
-                            <Text size="sm" style={{ flex: 1 }}>
-                              {file.path.split('/').pop()}
-                            </Text>
-                            {unsavedChanges.has(file.path) && (
-                              <span style={{ color: 'var(--warning)' }}>●</span>
-                            )}
-                          </div>
-                        </ContextMenu>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <Text size="sm" style={{ color: 'var(--text-secondary)', padding: '1rem' }}>
-                    No files
-                  </Text>
-                )}
-              </div>
-
-              {/* Dependencies Section */}
-              <div style={{ borderTop: '1px solid var(--border)', maxHeight: '40%', overflow: 'auto' }}>
-                <DependencyPanel
-                  dependencies={dependencies}
-                  onAddDependency={addDependency}
-                  onRemoveDependency={removeDependency}
-                />
+      {/* Main Editor Layout */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {/* File Explorer Panel */}
+        <div
+          style={{
+            width: '220px',
+            minWidth: '220px',
+            borderRight: '1px solid #374151',
+            background: '#1e293b',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Files Section */}
+          <div style={{ padding: '0.75rem', flex: 1, overflow: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <span style={{ fontSize: '12px', fontWeight: 500, color: '#94a3b8' }}>FILES</span>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button
+                  onClick={() => handleCreateFile('file')}
+                  title="New File"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    padding: '2px 6px',
+                  }}
+                >
+                  📄
+                </button>
+                <button
+                  onClick={() => handleCreateFile('folder')}
+                  title="New Folder"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    padding: '2px 6px',
+                  }}
+                >
+                  📁
+                </button>
               </div>
             </div>
-          </SplitterPanel>
-
-          {/* Code Editor Panel */}
-          <SplitterPanel minSize={300}>
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              {/* Open File Tabs */}
-              <div
-                style={{
-                  height: '40px',
-                  borderBottom: '1px solid var(--border)',
-                  background: 'var(--surface-2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  overflow: 'auto',
-                }}
-              >
-                {openFiles.map((filePath) => (
-                  <div
-                    key={filePath}
-                    onClick={() => setActiveFile(filePath)}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      borderRight: '1px solid var(--border)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      background: activeFile === filePath ? 'var(--surface-1)' : 'transparent',
-                    }}
-                  >
-                    <span>{getFileIcon(filePath)}</span>
-                    <Text size="sm">{filePath.split('/').pop()}</Text>
-                    {unsavedChanges.has(filePath) && (
-                      <span style={{ color: 'var(--warning)', fontSize: '10px' }}>●</span>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        closeFile(filePath);
-                      }}
+            {files.length > 0 ? (
+              <div>
+                {files.map((file) => {
+                  const isActive = activeFile === file.path;
+                  return (
+                    <div
+                      key={file.path}
+                      onClick={() => openFile(file.path)}
                       style={{
-                        background: 'none',
-                        border: 'none',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: '4px',
                         cursor: 'pointer',
-                        color: 'var(--text-secondary)',
-                        padding: '2px',
-                        marginLeft: '4px',
+                        background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                        color: isActive ? '#818cf8' : '#e2e8f0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        marginBottom: '2px',
+                        fontSize: '13px',
                       }}
                     >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                      <span>{getFileIcon(file.path)}</span>
+                      <span style={{ flex: 1 }}>{file.path.split('/').pop()}</span>
+                      {unsavedChanges.has(file.path) && (
+                        <span style={{ color: '#eab308' }}>●</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+            ) : (
+              <div style={{ color: '#64748b', padding: '1rem', fontSize: '13px' }}>
+                No files
+              </div>
+            )}
+          </div>
 
-              {/* Monaco Editor */}
-              <div style={{ flex: 1, overflow: 'hidden' }}>
-                {activeFileData ? (
-                  <Editor
-                    height="100%"
-                    language={activeFileData.language}
-                    value={activeFileData.content}
-                    theme={settings.theme}
-                    onChange={(value) => {
-                      if (value !== undefined && activeFile) {
-                        updateFileContent(activeFile, value);
-                      }
-                    }}
-                    options={{
-                      fontSize: settings.fontSize,
-                      tabSize: settings.tabSize,
-                      wordWrap: settings.wordWrap,
-                      minimap: { enabled: settings.minimap },
-                      lineNumbers: settings.lineNumbers,
-                      automaticLayout: true,
-                      scrollBeyondLastLine: false,
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    <Text>Select a file to edit</Text>
-                  </div>
-                )}
-              </div>
+          {/* Dependencies Section - only for React projects */}
+          {currentProject?.template !== 'vanilla' && (
+            <div style={{ borderTop: '1px solid #374151', minHeight: '200px', overflow: 'auto' }}>
+              <DependencyPanel
+                dependencies={dependencies}
+                onAddDependency={addDependency}
+                onRemoveDependency={removeDependency}
+              />
             </div>
-          </SplitterPanel>
+          )}
+        </div>
 
-          {/* Preview Panel */}
-          <SplitterPanel minSize={300}>
-            <div
-              style={{
-                height: '100%',
-                borderLeft: '1px solid var(--border)',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-              }}
-            >
-              <SandpackProvider
-                template={getSandpackTemplate()}
-                files={sandpackFiles}
-                customSetup={{
-                  dependencies: dependencies,
-                }}
-                theme="dark"
-                options={{
-                  autorun: true,
-                  recompileMode: 'delayed',
-                  recompileDelay: 500,
+        {/* Code Editor Panel */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {/* Open File Tabs */}
+          <div
+            style={{
+              height: '40px',
+              borderBottom: '1px solid #374151',
+              background: '#1e293b',
+              display: 'flex',
+              alignItems: 'center',
+              overflow: 'auto',
+            }}
+          >
+            {openFiles.map((filePath) => (
+              <div
+                key={filePath}
+                onClick={() => setActiveFile(filePath)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  borderRight: '1px solid #374151',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: activeFile === filePath ? '#0f172a' : 'transparent',
+                  color: '#e2e8f0',
+                  fontSize: '13px',
                 }}
               >
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                  <SandpackPreview
-                    showNavigator={false}
-                    showRefreshButton
-                    style={{ height: showConsole ? '60%' : '100%' }}
-                  />
-                  {showConsole && (
-                    <div style={{ height: '40%', borderTop: '1px solid var(--border)' }}>
-                      <SandpackConsole />
-                    </div>
-                  )}
-                </div>
-              </SandpackProvider>
+                <span>{getFileIcon(filePath)}</span>
+                <span>{filePath.split('/').pop()}</span>
+                {unsavedChanges.has(filePath) && (
+                  <span style={{ color: '#eab308', fontSize: '10px' }}>●</span>
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeFile(filePath);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    padding: '2px',
+                    marginLeft: '4px',
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Monaco Editor */}
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            {activeFileData ? (
+              <Editor
+                height="100%"
+                language={activeFileData.language}
+                value={activeFileData.content}
+                theme={settings.theme}
+                onChange={(value) => {
+                  if (value !== undefined && activeFile) {
+                    updateFileContent(activeFile, value);
+                  }
+                }}
+                options={{
+                  fontSize: settings.fontSize,
+                  tabSize: settings.tabSize,
+                  wordWrap: settings.wordWrap,
+                  minimap: { enabled: settings.minimap },
+                  lineNumbers: settings.lineNumbers,
+                  automaticLayout: true,
+                  scrollBeyondLastLine: false,
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#64748b',
+                }}
+              >
+                Select a file to edit
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Preview Panel */}
+        <div
+          style={{
+            width: '40%',
+            minWidth: '300px',
+            borderLeft: '1px solid #374151',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+{/* VanillaPreview - ALWAYS mounted, hidden via CSS when not vanilla */}
+          {/* Never unmount to prevent iframe reload */}
+          <div style={{
+            height: '100%',
+            width: '100%',
+            display: isVanilla ? 'flex' : 'none',
+            flexDirection: 'column'
+          }}>
+            <VanillaPreview files={files} />
+          </div>
+
+          {/* Sandpack for React projects */}
+          {!isVanilla && files.length > 0 && (
+            <SandpackProvider
+              key={currentProject?.id}
+              template={getSandpackTemplate()}
+              files={sandpackFiles}
+              theme="dark"
+              options={{
+                autorun: true,
+                recompileMode: 'delayed',
+                recompileDelay: 500,
+              }}
+            >
+              <SandpackLayout style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <SandpackPreview
+                  showNavigator
+                  showRefreshButton
+                  style={{ flex: 1, minHeight: 0 }}
+                />
+                {showConsole && (
+                  <div style={{ height: '200px', borderTop: '1px solid #374151', flexShrink: 0 }}>
+                    <SandpackConsole />
+                  </div>
+                )}
+              </SandpackLayout>
+            </SandpackProvider>
+          )}
+
+          {!isVanilla && files.length === 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
+              Loading preview...
             </div>
-          </SplitterPanel>
-        </Splitter>
+          )}
+        </div>
       </div>
 
-      {/* File Create/Rename Modal */}
-      <Modal
-        isOpen={showFileModal}
-        onClose={() => {
-          setShowFileModal(false);
-          setNewFileName('');
-          setFileToRename(null);
-        }}
-        title={fileModalMode === 'create' ? 'Create New File' : 'Rename File'}
-        size="sm"
-      >
-        <Stack spacing="md">
-          <FormItem label={fileModalMode === 'create' ? 'File Path' : 'New Name'}>
-            <Input
-              placeholder={fileModalMode === 'create' ? 'e.g., components/Button.tsx' : 'New file name'}
-              value={newFileName}
-              onChange={(e) => setNewFileName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleFileModalSubmit();
-              }}
-              autoFocus
-            />
-          </FormItem>
-          {fileModalMode === 'create' && (
-            <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
-              Use "/" to create files in folders (e.g., "src/utils/helpers.ts")
-            </Text>
-          )}
-          <Group justify="right" gap="md">
-            <Button variant="ghost" onClick={() => setShowFileModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="solid"
-              colorScheme="primary"
-              onClick={handleFileModalSubmit}
-              disabled={!newFileName.trim()}
-            >
-              {fileModalMode === 'create' ? 'Create' : 'Rename'}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      {/* File Create Modal */}
+      {showFileModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+          onClick={() => {
+            setShowFileModal(false);
+            setNewFileName('');
+          }}
+        >
+          <div
+            style={{
+              background: '#1e293b',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              width: '100%',
+              maxWidth: '400px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 1rem', color: '#f1f5f9', fontSize: '1.1rem' }}>
+              {fileModalType === 'file' ? 'Create New File' : 'Create New Folder'}
+            </h3>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '14px', color: '#94a3b8' }}>
+                {fileModalType === 'file' ? 'File Path' : 'Folder Path'}
+              </label>
+              <input
+                type="text"
+                placeholder={fileModalType === 'file' ? 'e.g., utils/helper.js' : 'e.g., components'}
+                value={newFileName}
+                onChange={(e) => setNewFileName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleFileModalSubmit();
+                }}
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid #374151',
+                  background: '#0f172a',
+                  color: '#f1f5f9',
+                  fontSize: '14px',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '1rem' }}>
+              {fileModalType === 'file'
+                ? 'Use "/" to create nested files (e.g., "src/utils/helpers.ts")'
+                : 'Use "/" to create nested folders (e.g., "src/components/ui")'}
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                onClick={() => {
+                  setShowFileModal(false);
+                  setNewFileName('');
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#818cf8',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleFileModalSubmit}
+                disabled={!newFileName.trim()}
+                style={{
+                  padding: '0.5rem 1.5rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: newFileName.trim() ? '#6366f1' : '#4b5563',
+                  color: 'white',
+                  fontSize: '14px',
+                  cursor: newFileName.trim() ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
