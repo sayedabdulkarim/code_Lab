@@ -150,7 +150,7 @@ h1 {
       '@types/react-dom': '^18.2.0',
     },
     files: {
-      '/src/App.tsx': `export default function App(): JSX.Element {
+      '/src/App.tsx': `export default function App() {
   return (
     <div className="App">
       <h1>Hello CodeLab!</h1>
@@ -214,6 +214,26 @@ h1 {
     "typescript": "^5.0.0"
   }
 }`,
+      '/tsconfig.json': `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}`,
     },
   },
 };
@@ -231,9 +251,9 @@ const getLanguageFromPath = (path: string): string => {
   const ext = path.split('.').pop()?.toLowerCase();
   const languageMap: Record<string, string> = {
     js: 'javascript',
-    jsx: 'javascript',
+    jsx: 'javascriptreact',
     ts: 'typescript',
-    tsx: 'typescript',
+    tsx: 'typescriptreact',
     css: 'css',
     scss: 'scss',
     html: 'html',

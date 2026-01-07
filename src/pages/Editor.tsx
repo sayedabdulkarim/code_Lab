@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import {
@@ -467,14 +467,37 @@ export default function EditorPage() {
     };
   }, [projectId, fetchProject, reset]);
 
+  // Helper to get correct Monaco language from file path
+  const getMonacoLanguage = (path: string): string => {
+    const ext = path.split('.').pop()?.toLowerCase();
+    const languageMap: Record<string, string> = {
+      js: 'javascript',
+      jsx: 'javascriptreact',
+      ts: 'typescript',
+      tsx: 'typescriptreact',
+      css: 'css',
+      scss: 'scss',
+      html: 'html',
+      json: 'json',
+      md: 'markdown',
+    };
+    return languageMap[ext || ''] || 'plaintext';
+  };
+
   // Set files and dependencies ONLY when project first loads (not on every change)
   useEffect(() => {
     // Only initialize files once per project
     if (currentProject?.id && initializedProjectRef.current !== currentProject.id) {
+      // Reset editor state first (clear old project's open tabs)
+      reset();
       initializedProjectRef.current = currentProject.id;
 
       if (currentProject.files) {
-        let projectFiles = [...currentProject.files];
+        // Fix language mapping for all files (existing projects may have wrong language)
+        let projectFiles = currentProject.files.map(f => ({
+          ...f,
+          language: getMonacoLanguage(f.path),
+        }));
 
         // Auto-generate package.json if it doesn't exist (for React projects)
         if (currentProject.template !== 'vanilla') {
@@ -483,7 +506,7 @@ export default function EditorPage() {
             const packageJson = {
               name: currentProject.name?.toLowerCase().replace(/\s+/g, '-') || 'react-app',
               version: '1.0.0',
-              main: '/src/index.js',
+              main: currentProject.template === 'react-ts' ? '/src/index.tsx' : '/src/index.js',
               dependencies: currentProject.dependencies || {},
             };
             projectFiles.push({
@@ -506,7 +529,7 @@ export default function EditorPage() {
         setDependencies(currentProject.dependencies);
       }
     }
-  }, [currentProject, setFiles, setActiveFile, setDependencies]);
+  }, [currentProject, setFiles, setActiveFile, setDependencies, reset]);
 
   // Keep package.json in sync with dependencies (for React projects)
   useEffect(() => {
@@ -595,16 +618,18 @@ export default function EditorPage() {
 
   const activeFileData = files.find((f) => f.path === activeFile);
 
-  // Convert files to Sandpack format
-  const sandpackFiles = files.reduce(
-    (acc, file) => {
-      // Ensure path starts with / for Sandpack
-      const path = file.path.startsWith('/') ? file.path : `/${file.path}`;
-      acc[path] = { code: file.content };
-      return acc;
-    },
-    {} as Record<string, { code: string }>
-  );
+  // Convert files to Sandpack format - memoized to prevent unnecessary re-renders
+  const sandpackFiles = useMemo(() => {
+    return files.reduce(
+      (acc, file) => {
+        // Ensure path starts with / for Sandpack
+        const path = file.path.startsWith('/') ? file.path : `/${file.path}`;
+        acc[path] = { code: file.content };
+        return acc;
+      },
+      {} as Record<string, { code: string }>
+    );
+  }, [files]);
 
   // Determine Sandpack template based on project template
   const getSandpackTemplate = () => {
@@ -1102,7 +1127,7 @@ export default function EditorPage() {
           }}>
             {files.length > 0 ? (
               <SandpackProvider
-                key={`${currentProject?.id}-${Object.keys(dependencies).join(',')}`}
+                key={currentProject?.id}
                 template={getSandpackTemplate()}
                 files={sandpackFiles}
                 theme="dark"
@@ -1112,7 +1137,7 @@ export default function EditorPage() {
                 options={{
                   autorun: true,
                   recompileMode: 'delayed',
-                  recompileDelay: 500,
+                  recompileDelay: 300,
                 }}
               >
                 <SandpackLayout style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>

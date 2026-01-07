@@ -43,9 +43,9 @@ const getLanguageFromPath = (path: string): string => {
   const ext = path.split('.').pop()?.toLowerCase();
   const languageMap: Record<string, string> = {
     js: 'javascript',
-    jsx: 'javascript',
+    jsx: 'javascriptreact',  // Monaco needs this for JSX support
     ts: 'typescript',
-    tsx: 'typescript',
+    tsx: 'typescriptreact',  // Monaco needs this for TSX/JSX support
     css: 'css',
     scss: 'scss',
     html: 'html',

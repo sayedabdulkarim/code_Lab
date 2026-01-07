@@ -90,8 +90,8 @@ export default function Dashboard() {
       {/* Header */}
       <header style={{
         height: '56px',
-        background: 'var(--surface-2)',
-        borderBottom: '1px solid var(--border)',
+        background: '#0f172a',
+        borderBottom: '1px solid #1e293b',
         position: 'fixed',
         top: 0,
         left: 0,
@@ -100,34 +100,85 @@ export default function Dashboard() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 1rem'
+        padding: '0 1.5rem'
       }}>
-        <Text size="md" weight="bold" style={{ color: 'var(--primary)', fontSize: '1.25rem' }}>
-          CodeLab
-        </Text>
-        <Group gap="md" align="center">
-          <Button
-            variant="solid"
-            colorScheme="primary"
-            size="sm"
+        {/* Left - Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '24px' }}>🧪</span>
+          <span style={{
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            background: 'linear-gradient(135deg, #818cf8 0%, #6366f1 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            letterSpacing: '-0.5px',
+          }}>
+            CodeLab
+          </span>
+        </div>
+
+        {/* Right - Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button
             onClick={() => setShowNewProjectModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              background: '#6366f1',
+              border: 'none',
+              borderRadius: '8px',
+              color: 'white',
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#4f46e5')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#6366f1')}
           >
-            + New Project
-          </Button>
-          <Group gap="sm" align="center">
+            <span style={{ fontSize: '16px' }}>+</span>
+            New Project
+          </button>
+
+          <div style={{ width: '1px', height: '24px', background: '#334155' }} />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Avatar
               {...(user?.photoURL ? { src: user.photoURL } : {})}
               fallback={user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
               size="sm"
             />
-            <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
-              {user?.displayName || user?.email}
-            </Text>
-          </Group>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
+            <span style={{ fontSize: '13px', color: '#e2e8f0', fontWeight: 500 }}>
+              {user?.displayName || user?.email?.split('@')[0]}
+            </span>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '6px 12px',
+              background: 'transparent',
+              border: '1px solid #334155',
+              borderRadius: '6px',
+              color: '#94a3b8',
+              fontSize: '13px',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#475569';
+              e.currentTarget.style.color = '#e2e8f0';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#334155';
+              e.currentTarget.style.color = '#94a3b8';
+            }}
+          >
             Sign Out
-          </Button>
-        </Group>
+          </button>
+        </div>
       </header>
 
       <div style={{ display: 'flex', paddingTop: '56px', minHeight: '100vh' }}>
@@ -316,6 +367,7 @@ export default function Dashboard() {
                 gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
                 gap: '1.25rem',
                 maxWidth: '1200px',
+                marginTop: '1.5rem',
               }}>
                 {filteredProjects.map((project) => {
                   const templateColors: Record<string, { bg: string; icon: string; color: string }> = {
