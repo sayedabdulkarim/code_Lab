@@ -1,73 +1,130 @@
-# React + TypeScript + Vite
+# CodeLab - Browser-Based Code Playground
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, browser-based code editor and playground similar to CodeSandbox. Build, preview, and share code instantly in your browser.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Multi-Template Support**
+  - Vanilla JS (HTML, CSS, JavaScript)
+  - React (JavaScript)
+  - React TypeScript
 
-## React Compiler
+- **Real-Time Preview**
+  - Live preview as you type
+  - Instant feedback for Vanilla JS
+  - Sandpack-powered React preview
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Monaco Editor**
+  - VS Code-like editing experience
+  - Syntax highlighting
+  - IntelliSense support
+  - Multiple file tabs
 
-## Expanding the ESLint configuration
+- **Dependency Management**
+  - Search and add npm packages
+  - Auto-update package.json
+  - Works with React projects
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Project Management**
+  - Create, rename, delete projects
+  - Auto-save functionality
+  - Organize by template type
+  - Firebase cloud storage
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **Modern UI**
+  - Dark theme
+  - File tree explorer
+  - Collapsible console
+  - Responsive design
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Tech Stack
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- **Frontend**: React 18, TypeScript, Vite
+- **Editor**: Monaco Editor
+- **Preview**: Sandpack (React), Custom iframe (Vanilla)
+- **Backend**: Firebase (Auth + Firestore)
+- **UI Library**: ui_zenkit (custom)
+- **State Management**: Zustand
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- npm or pnpm
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/codelab.git
+
+# Navigate to project
+cd codelab
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Environment Variables
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Create a `.env` file in the root directory:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```env
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
 ```
+
+## Scripts
+
+```bash
+npm run dev      # Start development server
+npm run build    # Build for production
+npm run preview  # Preview production build
+npm run lint     # Run ESLint
+```
+
+## Project Structure
+
+```
+src/
+├── components/     # Reusable components
+├── pages/          # Page components (Dashboard, Editor)
+├── store/          # Zustand stores
+├── utils/          # Utility functions & templates
+├── types/          # TypeScript types
+└── main.tsx        # App entry point
+```
+
+## Screenshots
+
+### Dashboard
+- Project cards organized by template type
+- Quick actions (rename, delete)
+- Create new project modal
+
+### Editor
+- Monaco code editor
+- File tree explorer
+- Live preview panel
+- Dependency manager
+- Collapsible console
+
+## License
+
+MIT License
+
+## Author
+
+Made with love by **Sayed Abdul Karim**
+
+---
+
+[Live Demo](https://codelab.example.com) | [Report Bug](https://github.com/yourusername/codelab/issues)

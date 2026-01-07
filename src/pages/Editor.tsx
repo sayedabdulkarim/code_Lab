@@ -6,6 +6,7 @@ import {
   SandpackPreview,
   SandpackConsole,
   SandpackLayout,
+  useSandpack,
 } from '@codesandbox/sandpack-react';
 import {
   Button,
@@ -222,6 +223,74 @@ const VanillaPreview = ({ files }: { files: ProjectFile[] }) => {
           background: '#fff',
         }}
       />
+    </div>
+  );
+};
+
+// Custom React Preview with URL bar - matches VanillaPreview style
+const ReactPreviewWrapper = ({ projectName }: { projectName: string }) => {
+  const { sandpack } = useSandpack();
+  const [previewUrl] = useState(() => {
+    const slug = projectName?.toLowerCase().replace(/\s+/g, '-') || 'project';
+    return `https://${slug}.codesandbox.io/`;
+  });
+
+  const handleRefresh = () => {
+    // Trigger Sandpack refresh
+    sandpack.runSandpack();
+  };
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Custom Toolbar */}
+      <div style={{
+        height: '40px',
+        background: '#1e1e1e',
+        borderBottom: '1px solid #374151',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 8px',
+        gap: '8px',
+        flexShrink: 0,
+      }}>
+        <button
+          onClick={handleRefresh}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: '#94a3b8',
+            cursor: 'pointer',
+            fontSize: '14px',
+            padding: '6px 8px',
+            borderRadius: '4px',
+          }}
+          title="Refresh"
+        >
+          ↻
+        </button>
+        <div style={{
+          flex: 1,
+          background: '#0f172a',
+          borderRadius: '4px',
+          padding: '6px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+        }}>
+          <span style={{ color: '#10b981', fontSize: '11px' }}>●</span>
+          <span style={{ color: '#e2e8f0', fontSize: '12px', fontFamily: 'monospace' }}>
+            {previewUrl}
+          </span>
+        </div>
+      </div>
+      {/* Sandpack Preview - hidden navigator since we have custom toolbar */}
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <SandpackPreview
+          showNavigator={false}
+          showRefreshButton={false}
+          style={{ height: '100%' }}
+        />
+      </div>
     </div>
   );
 };
@@ -1141,12 +1210,10 @@ export default function EditorPage() {
                 }}
               >
                 <SandpackLayout style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                  {/* Preview area */}
-                  <SandpackPreview
-                    showNavigator
-                    showRefreshButton
-                    style={{ flex: 1, minHeight: 0 }}
-                  />
+                  {/* Preview area with custom toolbar */}
+                  <div style={{ flex: 1, minHeight: 0 }}>
+                    <ReactPreviewWrapper projectName={currentProject?.name || 'project'} />
+                  </div>
 
                   {/* Collapsible Console */}
                   <div style={{

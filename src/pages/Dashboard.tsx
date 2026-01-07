@@ -23,7 +23,7 @@ type NavSection = 'recent' | 'all' | 'settings';
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const { projects, loading, error, fetchUserProjects, createProject, deleteProject, clearError } =
+  const { projects, loading, error, fetchUserProjects, createProject, deleteProject, updateProject, clearError } =
     useProjectsStore();
 
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -32,6 +32,8 @@ export default function Dashboard() {
   const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplate>('react');
   const [creating, setCreating] = useState(false);
   const [activeNav, setActiveNav] = useState<NavSection>('all');
+  const [renameModal, setRenameModal] = useState<{ projectId: string; currentName: string } | null>(null);
+  const [newName, setNewName] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -72,6 +74,33 @@ export default function Dashboard() {
     navigate('/');
   };
 
+  const handleRename = async () => {
+    if (!renameModal || !newName.trim()) return;
+
+    // Check if name already exists (excluding current project)
+    const nameExists = projects.some(
+      p => p.id !== renameModal.projectId && p.name.toLowerCase() === newName.trim().toLowerCase()
+    );
+
+    if (nameExists) {
+      alert('A project with this name already exists. Please choose a different name.');
+      return;
+    }
+
+    try {
+      await updateProject(renameModal.projectId, { name: newName.trim() });
+      setRenameModal(null);
+      setNewName('');
+    } catch (error) {
+      console.error('Failed to rename project:', error);
+    }
+  };
+
+  const openRenameModal = (projectId: string, currentName: string) => {
+    setRenameModal({ projectId, currentName });
+    setNewName(currentName);
+  };
+
   // Filter projects based on active nav
   const getFilteredProjects = () => {
     if (activeNav === 'recent') {
@@ -102,18 +131,24 @@ export default function Dashboard() {
         justifyContent: 'space-between',
         padding: '0 1.5rem'
       }}>
-        {/* Left - Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '24px' }}>🧪</span>
-          <span style={{
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            background: 'linear-gradient(135deg, #818cf8 0%, #6366f1 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            letterSpacing: '-0.5px',
-          }}>
-            CodeLab
+        {/* Left - Logo & Credit */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '24px' }}>🧪</span>
+            <span style={{
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              background: 'linear-gradient(135deg, #818cf8 0%, #6366f1 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              letterSpacing: '-0.5px',
+            }}>
+              CodeLab
+            </span>
+          </div>
+          <div style={{ width: '1px', height: '20px', background: '#334155' }} />
+          <span style={{ fontSize: '12px', color: '#64748b' }}>
+            Made with <span style={{ color: '#ef4444' }}>❤️</span> by <span style={{ color: '#94a3b8', fontWeight: 500 }}>Sayed Abdul Karim</span>
           </span>
         </div>
 
@@ -362,136 +397,165 @@ export default function Dashboard() {
                   </Empty>
                 </div>
               ) : (
-                <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '1.25rem',
-                maxWidth: '1200px',
-                marginTop: '1.5rem',
-              }}>
-                {filteredProjects.map((project) => {
-                  const templateColors: Record<string, { bg: string; icon: string; color: string }> = {
-                    react: { bg: 'linear-gradient(135deg, #1a365d 0%, #2563eb 100%)', icon: '⚛️', color: '#61dafb' },
-                    'react-ts': { bg: 'linear-gradient(135deg, #1e3a5f 0%, #3b82f6 100%)', icon: '⚛️', color: '#3178c6' },
-                    vanilla: { bg: 'linear-gradient(135deg, #422006 0%, #d97706 100%)', icon: '🟨', color: '#f7df1e' },
+                <div style={{ marginTop: '1.5rem' }}>
+                {/* Group projects by template - order: vanilla, react, react-ts */}
+                {(['vanilla', 'react', 'react-ts'] as const).map(templateType => {
+                  const templateProjects = filteredProjects.filter(p => p.template === templateType);
+                  if (templateProjects.length === 0) return null;
+
+                  const sectionInfo: Record<string, { title: string; icon: string; color: string }> = {
+                    'vanilla': { title: 'Vanilla JS', icon: '🟨', color: '#f7df1e' },
+                    'react': { title: 'React', icon: '⚛️', color: '#61dafb' },
+                    'react-ts': { title: 'React TypeScript', icon: '⚛️', color: '#3178c6' },
                   };
-                  const templateStyle = templateColors[project.template] || templateColors.vanilla;
+                  const section = sectionInfo[templateType];
 
                   return (
-                    <div
-                      key={project.id}
-                      onClick={() => navigate(`/editor/${project.id}`)}
-                      style={{
-                        background: '#1e293b',
-                        borderRadius: '12px',
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        border: '1px solid #334155',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-4px)';
-                        e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.3)';
-                        e.currentTarget.style.borderColor = '#475569';
-                        const actions = e.currentTarget.querySelector('.card-actions') as HTMLElement;
-                        if (actions) actions.style.opacity = '1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = 'none';
-                        e.currentTarget.style.borderColor = '#334155';
-                        const actions = e.currentTarget.querySelector('.card-actions') as HTMLElement;
-                        if (actions) actions.style.opacity = '0';
-                      }}
-                    >
-                      {/* Preview Thumbnail */}
+                    <div key={templateType} style={{ marginBottom: '2rem' }}>
+                      {/* Section Header */}
                       <div style={{
-                        height: '140px',
-                        background: templateStyle.bg,
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        position: 'relative',
+                        gap: '8px',
+                        marginBottom: '12px',
+                        paddingBottom: '8px',
+                        borderBottom: '1px solid #334155',
                       }}>
-                        <span style={{ fontSize: '48px', opacity: 0.9 }}>{templateStyle.icon}</span>
-                        {/* Template Badge */}
-                        <span style={{
-                          position: 'absolute',
-                          top: '10px',
-                          right: '10px',
-                          background: 'rgba(0,0,0,0.4)',
-                          color: templateStyle.color,
-                          padding: '4px 10px',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          textTransform: 'uppercase',
-                          backdropFilter: 'blur(4px)',
-                        }}>
-                          {project.template}
+                        <span style={{ fontSize: '18px' }}>{section.icon}</span>
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: section.color }}>
+                          {section.title}
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>
+                          ({templateProjects.length})
                         </span>
                       </div>
 
-                      {/* Card Content */}
-                      <div style={{ padding: '16px' }}>
-                        <div style={{ marginBottom: '8px' }}>
-                          <h3 style={{
-                            margin: 0,
-                            fontSize: '15px',
-                            fontWeight: 600,
-                            color: '#f1f5f9',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {project.name}
-                          </h3>
-                          <p style={{
-                            margin: '4px 0 0',
-                            fontSize: '13px',
-                            color: '#64748b',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {project.description || 'No description'}
-                          </p>
-                        </div>
-
-                        {/* Footer */}
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          paddingTop: '12px',
-                          borderTop: '1px solid #334155',
-                        }}>
-                          <span style={{ fontSize: '12px', color: '#64748b' }}>
-                            {project.updatedAt?.toLocaleDateString() || 'Recently'}
-                          </span>
+                      {/* Projects Row */}
+                      <div style={{
+                        display: 'flex',
+                        gap: '12px',
+                        overflowX: 'auto',
+                        paddingBottom: '8px',
+                      }}>
+                        {templateProjects.map((project) => (
                           <div
-                            className="card-actions"
-                            style={{ opacity: 0, transition: 'opacity 0.15s' }}
+                            key={project.id}
+                            onClick={() => navigate(`/editor/${project.id}`)}
+                            style={{
+                              minWidth: '240px',
+                              maxWidth: '240px',
+                              background: '#1e293b',
+                              borderRadius: '8px',
+                              padding: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              border: '1px solid #334155',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#263348';
+                              e.currentTarget.style.borderColor = '#475569';
+                              const actions = e.currentTarget.querySelector('.card-actions') as HTMLElement;
+                              if (actions) actions.style.opacity = '1';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = '#1e293b';
+                              e.currentTarget.style.borderColor = '#334155';
+                              const actions = e.currentTarget.querySelector('.card-actions') as HTMLElement;
+                              if (actions) actions.style.opacity = '0';
+                            }}
                           >
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteProject(project.id);
-                              }}
+                            {/* Icon */}
+                            <div style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '8px',
+                              background: templateType === 'vanilla'
+                                ? 'linear-gradient(135deg, #422006 0%, #d97706 100%)'
+                                : 'linear-gradient(135deg, #1a365d 0%, #2563eb 100%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}>
+                              <span style={{ fontSize: '20px' }}>{section.icon}</span>
+                            </div>
+
+                            {/* Content */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <h3 style={{
+                                margin: 0,
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                color: '#f1f5f9',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}>
+                                {project.name}
+                              </h3>
+                              <p style={{
+                                margin: '2px 0 0',
+                                fontSize: '11px',
+                                color: '#64748b',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}>
+                                {project.updatedAt?.toLocaleDateString() || 'Recently'}
+                              </p>
+                            </div>
+
+                            {/* Action buttons */}
+                            <div
+                              className="card-actions"
                               style={{
-                                background: 'rgba(239, 68, 68, 0.1)',
-                                border: 'none',
-                                color: '#f87171',
-                                padding: '4px 10px',
-                                borderRadius: '4px',
-                                fontSize: '12px',
-                                cursor: 'pointer',
+                                opacity: 0,
+                                transition: 'opacity 0.15s',
+                                flexShrink: 0,
+                                display: 'flex',
+                                gap: '4px',
                               }}
                             >
-                              Delete
-                            </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openRenameModal(project.id, project.name);
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#64748b',
+                                  padding: '4px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                }}
+                                title="Rename project"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteProject(project.id);
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#64748b',
+                                  padding: '4px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                }}
+                                title="Delete project"
+                              >
+                                🗑️
+                              </button>
+                            </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
                     </div>
                   );
@@ -667,6 +731,110 @@ export default function Dashboard() {
                   {creating ? 'Creating...' : 'Create Project'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Project Modal */}
+      {renameModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+          onClick={() => {
+            setRenameModal(null);
+            setNewName('');
+          }}
+        >
+          <div
+            style={{
+              background: '#1e293b',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              width: '100%',
+              maxWidth: '400px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 1rem', color: '#f1f5f9', fontSize: '1.1rem' }}>
+              Rename Project
+            </h3>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '14px', color: '#94a3b8' }}>
+                Project Name
+              </label>
+              <input
+                type="text"
+                placeholder="Enter new name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRename();
+                }}
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid #374151',
+                  background: '#0f172a',
+                  color: '#f1f5f9',
+                  fontSize: '14px',
+                  outline: 'none',
+                }}
+              />
+              {newName.trim() && projects.some(p => p.id !== renameModal.projectId && p.name.toLowerCase() === newName.trim().toLowerCase()) && (
+                <p style={{ margin: '0.5rem 0 0', fontSize: '12px', color: '#f87171' }}>
+                  A project with this name already exists
+                </p>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                onClick={() => {
+                  setRenameModal(null);
+                  setNewName('');
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#818cf8',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRename}
+                disabled={!newName.trim() || newName.trim() === renameModal.currentName || projects.some(p => p.id !== renameModal.projectId && p.name.toLowerCase() === newName.trim().toLowerCase())}
+                style={{
+                  padding: '0.5rem 1.5rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: newName.trim() && newName.trim() !== renameModal.currentName ? '#6366f1' : '#4b5563',
+                  color: 'white',
+                  fontSize: '14px',
+                  cursor: newName.trim() && newName.trim() !== renameModal.currentName ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Rename
+              </button>
             </div>
           </div>
         </div>
