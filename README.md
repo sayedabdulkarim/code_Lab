@@ -123,8 +123,10 @@ MIT License
 
 ## Author
 
-Made with love by **Sayed Abdul Karim**
+Made with ❤️ by **Sayed Abdul Karim**
+
+[![GitHub](https://img.shields.io/badge/GitHub-sayedabdulkarim-181717?style=flat&logo=github)](https://github.com/sayedabdulkarim)
 
 ---
 
-[Live Demo](https://codelab.example.com) | [Report Bug](https://github.com/yourusername/codelab/issues)
+[Live Demo](https://codelab.example.com) | [Report Bug](https://github.com/sayedabdulkarim/codelab/issues)
