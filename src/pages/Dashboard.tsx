@@ -180,11 +180,19 @@ export default function Dashboard() {
           <div style={{ width: '1px', height: '24px', background: '#334155' }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Avatar
-              {...(user?.photoURL ? { src: user.photoURL } : {})}
-              fallback={user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-              size="sm"
-            />
+            {user?.photoURL ? (
+              <img
+                src={user.photoURL}
+                referrerPolicy="no-referrer"
+                alt="avatar"
+                style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
+              />
+            ) : (
+              <Avatar
+                fallback={user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                size="sm"
+              />
+            )}
             <span style={{ fontSize: '13px', color: '#e2e8f0', fontWeight: 500 }}>
               {user?.displayName || user?.email?.split('@')[0]}
             </span>
