@@ -42,14 +42,14 @@ export function DependencyPanel({
         `https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(query)}&size=10`
       );
       const data = await response.json();
-      const packages: NpmPackage[] = data.objects.map((obj: any) => ({
+      const packages: NpmPackage[] = data.objects.map((obj: { package: { name: string; version: string; description?: string } }) => ({
         name: obj.package.name,
         version: obj.package.version,
         description: obj.package.description || 'No description',
       }));
       setSearchResults(packages);
       setShowResults(true);
-    } catch (error) {
+    } catch {
       toast.error('Search failed', 'Could not search npm packages');
       setSearchResults([]);
     } finally {

@@ -53,8 +53,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const result = await signInWithEmailAndPassword(auth, email, password);
       const user = mapFirebaseUser(result.user);
       set({ user, loading: false });
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Login failed', loading: false });
       throw error;
     }
   },
@@ -69,8 +69,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       };
       await saveUserToFirestore(user);
       set({ user, loading: false });
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Signup failed', loading: false });
       throw error;
     }
   },
@@ -82,8 +82,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const user = mapFirebaseUser(result.user);
       await saveUserToFirestore(user);
       set({ user, loading: false });
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Google login failed', loading: false });
       throw error;
     }
   },
@@ -95,8 +95,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const user = mapFirebaseUser(result.user);
       await saveUserToFirestore(user);
       set({ user, loading: false });
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'GitHub login failed', loading: false });
       throw error;
     }
   },
@@ -106,8 +106,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       await signOut(auth);
       set({ user: null, loading: false });
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Logout failed', loading: false });
       throw error;
     }
   },

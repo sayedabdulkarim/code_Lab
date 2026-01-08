@@ -6,7 +6,6 @@ import {
   Text,
   Stack,
   Group,
-  Badge,
   Alert,
   Avatar,
   Empty,
@@ -306,31 +305,73 @@ export default function Dashboard() {
         {/* Main Content */}
         <main style={{ marginLeft: '250px', flex: 1, padding: '1.5rem' }}>
           {activeNav === 'settings' ? (
-            <Stack spacing="lg">
-              <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', margin: 0 }}>
-                  Settings
-                </h1>
-                <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
-                  Manage your account settings
-                </Text>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 'calc(100vh - 120px)',
+              textAlign: 'center'
+            }}>
+              {/* Avatar */}
+              {user?.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  referrerPolicy="no-referrer"
+                  alt="avatar"
+                  style={{
+                    width: '100px',
+                    height: '100px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '3px solid #6366f1',
+                    marginBottom: '1.5rem'
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: '100px',
+                  height: '100px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '2.5rem',
+                  fontWeight: 'bold',
+                  color: 'white',
+                  marginBottom: '1.5rem'
+                }}>
+                  {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                </div>
+              )}
+
+              {/* Name */}
+              <Text weight="bold" size="xl" style={{ marginBottom: '0.5rem' }}>
+                {user?.displayName || 'User'}
+              </Text>
+
+              {/* Email */}
+              <Text size="sm" style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                {user?.email}
+              </Text>
+
+              {/* Member since */}
+              <Text size="xs" style={{ color: '#64748b', marginBottom: '2rem' }}>
+                Member since {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </Text>
+
+              {/* Sign Out */}
+              <Button variant="outline" colorScheme="danger" onClick={handleLogout} style={{ marginBottom: '3rem' }}>
+                Sign Out
+              </Button>
+
+              {/* Footer Info */}
+              <div style={{ color: '#64748b', fontSize: '13px' }}>
+                <div style={{ marginBottom: '0.5rem' }}>Version 1.0.0</div>
+                <div>Made with ❤️ by Sayed Abdul Karim</div>
               </div>
-              <Card variant="outlined" size="lg">
-                <Stack spacing="md">
-                  <Group justify="apart" align="center">
-                    <div>
-                      <Text weight="medium">Account</Text>
-                      <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
-                        {user?.email}
-                      </Text>
-                    </div>
-                    <Button variant="outline" colorScheme="danger" onClick={handleLogout}>
-                      Sign Out
-                    </Button>
-                  </Group>
-                </Stack>
-              </Card>
-            </Stack>
+            </div>
           ) : (
             <Stack spacing="lg">
               {/* Page Header */}

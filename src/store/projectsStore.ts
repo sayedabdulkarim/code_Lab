@@ -63,8 +63,8 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
         updatedAt: doc.data().updatedAt?.toDate(),
       })) as Project[];
       set({ projects, loading: false });
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Operation failed", loading: false });
     }
   },
 
@@ -85,8 +85,8 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
         updatedAt: doc.data().updatedAt?.toDate(),
       })) as Project[];
       set({ projects, loading: false });
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Operation failed", loading: false });
     }
   },
 
@@ -109,8 +109,8 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
         set({ error: 'Project not found', loading: false });
         return null;
       }
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Operation failed", loading: false });
       return null;
     }
   },
@@ -137,8 +137,8 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
       const docRef = await addDoc(collection(db, 'projects'), projectData);
       set({ loading: false });
       return docRef.id;
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Operation failed", loading: false });
       throw error;
     }
   },
@@ -165,8 +165,8 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
           p.id === projectId ? { ...p, ...updates } : p
         ),
       });
-    } catch (error: any) {
-      set({ error: error.message });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Operation failed" });
       throw error;
     }
   },
@@ -182,8 +182,8 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
         currentProject: currentProject?.id === projectId ? null : currentProject,
         loading: false,
       });
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Operation failed", loading: false });
       throw error;
     }
   },
@@ -211,8 +211,8 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
       const docRef = await addDoc(collection(db, 'projects'), forkedProject);
       set({ loading: false });
       return docRef.id;
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Operation failed", loading: false });
       throw error;
     }
   },

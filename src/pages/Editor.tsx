@@ -11,10 +11,8 @@ import {
 import {
   Button,
   Text,
-  Group,
   Stack,
   Spinner,
-  Badge,
 } from 'ui_zenkit';
 import { useProjectsStore, useEditorStore, useToastStore } from '../store';
 import { DependencyPanel } from '../components/DependencyPanel';
@@ -563,7 +561,7 @@ export default function EditorPage() {
 
       if (currentProject.files) {
         // Fix language mapping for all files (existing projects may have wrong language)
-        let projectFiles = currentProject.files.map(f => ({
+        const projectFiles = currentProject.files.map(f => ({
           ...f,
           language: getMonacoLanguage(f.path),
         }));
@@ -619,7 +617,7 @@ export default function EditorPage() {
       if (files[packageJsonIndex].content !== newContent) {
         updateFileContent(files[packageJsonIndex].path, newContent);
       }
-    } catch (e) {
+    } catch {
       // Invalid JSON, skip update
     }
   }, [dependencies, currentProject?.template, files, updateFileContent]);
@@ -678,7 +676,7 @@ export default function EditorPage() {
       unsavedChanges.forEach((path) => markSaved(path));
       markDependenciesSaved();
       setSaveStatus('saved');
-    } catch (error) {
+    } catch {
       setSaveStatus('unsaved');
     } finally {
       setSaving(false);
