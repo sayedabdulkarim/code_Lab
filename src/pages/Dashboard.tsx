@@ -347,19 +347,19 @@ export default function Dashboard() {
               )}
 
               {/* Name */}
-              <Text weight="bold" size="xl" style={{ marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
                 {user?.displayName || 'User'}
-              </Text>
+              </div>
 
               {/* Email */}
-              <Text size="sm" style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                 {user?.email}
-              </Text>
+              </div>
 
               {/* Member since */}
-              <Text size="xs" style={{ color: '#64748b', marginBottom: '2rem' }}>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '2rem' }}>
                 Member since {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </Text>
+              </div>
 
               {/* Sign Out */}
               <Button variant="outline" colorScheme="danger" onClick={handleLogout} style={{ marginBottom: '3rem' }}>
